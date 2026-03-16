@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نت باكت - لوحة التحكم والاشتراكات</title>
+    <title>نت باكت - النسخة الكاملة</title>
     
     <!-- CDNs -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -12,35 +12,20 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
     
-    <!-- Firebase SDKs -->
+    <!-- Firebase SDKs (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap');
-        body {
-            font-family: 'Almarai', sans-serif;
-            background-color: #f8fafc;
-        }
-        .recharts-responsive-container {
-            direction: ltr;
-        }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
+        body { font-family: 'Almarai', sans-serif; background-color: #f8fafc; }
+        .recharts-responsive-container { direction: ltr; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 
     <script>
@@ -48,22 +33,7 @@
             theme: {
                 extend: {
                     colors: {
-                        indigo: {
-                            50: '#eef2ff',
-                            100: '#e0e7ff',
-                            200: '#c7d2fe',
-                            300: '#a5b4fc',
-                            400: '#818cf8',
-                            500: '#6366f1',
-                            600: '#4f46e5',
-                            700: '#4338ca',
-                            800: '#3730a3',
-                            900: '#312e81',
-                        }
-                    },
-                    borderRadius: {
-                        '2xl': '1.5rem',
-                        '3xl': '2rem',
+                        indigo: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' }
                     }
                 }
             }
@@ -75,652 +45,333 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
-        const { 
-            BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-            PieChart, Pie, Cell
-        } = Recharts;
+        const { motion, AnimatePresence } = FramerMotion;
+        const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = Recharts;
 
-        // --- Firebase Configuration ---
+        // --- Firebase Config ---
         const firebaseConfig = {
             apiKey: "AIzaSyC95TQmBZ4ufmhhf95cQtK0hg5vZHCVImw",
             authDomain: "sites-6bd6e.firebaseapp.com",
             projectId: "sites-6bd6e",
             appId: "1:1011216840446:web:1c794c47dbb9807c7f97af"
         };
-        const firestoreDatabaseId = "ai-studio-a3326fe4-506a-4414-ba86-dc2ea0a35141";
-
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
-        // Note: In compat mode, databaseId is handled differently if needed, 
-        // but usually default is fine. If specific DB is needed:
-        // const db = firebase.app().firestore(firestoreDatabaseId);
-
         const ADMIN_EMAILS = ["mhmdasm628@gmail.com", "djcj1421@gmail.com"];
 
-        // --- Lucide Icon Helper ---
+        // --- Helpers ---
         const Icon = ({ name, className, ...props }) => {
             const LucideIcon = lucide.icons[name] || lucide.icons.HelpCircle;
             return <LucideIcon className={className} {...props} />;
         };
 
+        const cn = (...classes) => classes.filter(Boolean).join(' ');
+
         // --- Services ---
         const services = {
             categories: {
-                getAll: async () => {
-                    const snap = await db.collection('categories').orderBy('order').get();
-                    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                },
-                add: async (data) => await db.collection('categories').add(data),
-                update: async (id, data) => await db.collection('categories').doc(id).update(data),
-                delete: async (id) => await db.collection('categories').doc(id).delete()
+                getAll: async () => (await db.collection('categories').orderBy('order').get()).docs.map(d => ({id: d.id, ...d.data()})),
+                add: (d) => db.collection('categories').add(d),
+                update: (id, d) => db.collection('categories').doc(id).update(d),
+                delete: (id) => db.collection('categories').doc(id).delete()
             },
             packages: {
-                getAll: async () => {
-                    const snap = await db.collection('packages').get();
-                    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                },
-                add: async (data) => await db.collection('packages').add(data),
-                update: async (id, data) => await db.collection('packages').doc(id).update(data),
-                delete: async (id) => await db.collection('packages').doc(id).delete()
+                getAll: async () => (await db.collection('packages').get()).docs.map(d => ({id: d.id, ...d.data()})),
+                add: (d) => db.collection('packages').add({...d, isActive: true}),
+                update: (id, d) => db.collection('packages').doc(id).update(d),
+                delete: (id) => db.collection('packages').doc(id).delete()
             },
             subscriptions: {
-                subscribeToUser: (userId, callback) => {
-                    return db.collection('subscriptions')
-                        .where('userId', '==', userId)
-                        .orderBy('createdAt', 'desc')
-                        .onSnapshot(snap => {
-                            callback(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                        });
+                subscribeToUser: (uid, cb) => db.collection('subscriptions').where('userId', '==', uid).orderBy('createdAt', 'desc').onSnapshot(s => cb(s.docs.map(d => ({id: d.id, ...d.data()})))),
+                subscribeToAll: (cb) => db.collection('subscriptions').orderBy('createdAt', 'desc').onSnapshot(s => cb(s.docs.map(d => ({id: d.id, ...d.data()})))),
+                create: async (d) => {
+                    const pkgRef = db.collection('packages').doc(d.packageId);
+                    const pkg = await pkgRef.get();
+                    if (pkg.exists && pkg.data().stock > 0) await pkgRef.update({ stock: pkg.data().stock - 1 });
+                    return db.collection('subscriptions').add({...d, status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp()});
                 },
-                subscribeToAll: (callback) => {
-                    return db.collection('subscriptions')
-                        .orderBy('createdAt', 'desc')
-                        .onSnapshot(snap => {
-                            callback(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                        });
-                },
-                create: async (data) => {
-                    return await db.collection('subscriptions').add({
-                        ...data,
-                        status: 'pending',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                },
-                updateStatus: async (id, status) => {
-                    return await db.collection('subscriptions').doc(id).update({ status });
-                }
+                updateStatus: (id, status) => db.collection('subscriptions').doc(id).update({ status, updatedAt: firebase.firestore.FieldValue.serverTimestamp() })
             },
             chat: {
-                subscribeToMessages: (subId, callback) => {
-                    return db.collection('subscriptions').doc(subId).collection('messages')
-                        .orderBy('createdAt', 'asc')
-                        .onSnapshot(snap => {
-                            callback(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                        });
-                },
-                sendMessage: async (subId, text, senderId) => {
-                    const msg = {
-                        text,
-                        senderId,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    };
-                    await db.collection('subscriptions').doc(subId).collection('messages').add(msg);
-                    await db.collection('subscriptions').doc(subId).update({
-                        lastMessage: text,
-                        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        lastMessageSenderId: senderId
-                    });
-                }
-            },
-            refund: {
-                requestRefund: async (subId, senderPhone, refundPhone) => {
-                    return await db.collection('subscriptions').doc(subId).update({
-                        status: 'refund_requested',
-                        refundDetails: {
-                            senderPhone,
-                            refundPhone,
-                            requestedAt: firebase.firestore.FieldValue.serverTimestamp()
-                        }
-                    });
+                subscribe: (subId, cb) => db.collection('chatMessages').where('subscriptionId', '==', subId).orderBy('createdAt', 'asc').onSnapshot(s => cb(s.docs.map(d => ({id: d.id, ...d.data()})))),
+                send: async (subId, text, senderId) => {
+                    await db.collection('chatMessages').add({ subscriptionId: subId, text, senderId, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    await db.collection('subscriptions').doc(subId).update({ lastMessageText: text, lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(), lastMessageSenderId: senderId });
                 }
             },
             settings: {
-                subscribe: (callback) => {
-                    return db.collection('settings').doc('main').onSnapshot(doc => {
-                        callback(doc.exists ? doc.data() : null);
-                    });
-                },
-                update: async (data) => await db.collection('settings').doc('main').set(data, { merge: true })
-            },
-            users: {
-                subscribeToAll: (callback) => {
-                    return db.collection('users').onSnapshot(snap => {
-                        callback(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                    });
-                },
-                updateRole: async (uid, role) => await db.collection('users').doc(uid).update({ role })
+                subscribe: (cb) => db.collection('settings').doc('global').onSnapshot(d => cb(d.exists ? d.data() : null)),
+                update: (d) => db.collection('settings').doc('global').set(d, {merge: true})
             }
         };
 
-        // --- Components ---
-
-        const StatusBadge = ({ status }) => {
-            const styles = {
-                pending: "bg-orange-50 text-orange-600 border-orange-100",
-                approved: "bg-emerald-50 text-emerald-600 border-emerald-100",
-                rejected: "bg-red-50 text-red-600 border-red-100",
-                refund_requested: "bg-indigo-50 text-indigo-600 border-indigo-100",
-                refunded: "bg-slate-100 text-slate-500 border-slate-200"
-            };
-            const labels = {
-                pending: "قيد المراجعة",
-                approved: "مقبول",
-                rejected: "مرفوض",
-                refund_requested: "طلب استرداد",
-                refunded: "تم الاسترداد"
-            };
-            return (
-                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${styles[status] || styles.pending}`}>
-                    {labels[status] || status}
-                </span>
-            );
-        };
-
-        const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-md" }) => {
-            if (!isOpen) return null;
-            return (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-                    <div className={`relative bg-white p-8 rounded-[2.5rem] shadow-2xl w-full ${maxWidth} max-h-[90vh] overflow-y-auto`}>
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold">{title}</h2>
-                            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full">
-                                <Icon name="X" className="w-6 h-6" />
-                            </button>
-                        </div>
-                        {children}
-                    </div>
-                </div>
-            );
-        };
-
         // --- Main App ---
-
         function App() {
             const [user, setUser] = useState(null);
             const [isAdmin, setIsAdmin] = useState(false);
             const [isModerator, setIsModerator] = useState(false);
-            const [loading, setLoading] = useState(true);
             const [view, setView] = useState('home');
+            const [loading, setLoading] = useState(true);
             
             const [categories, setCategories] = useState([]);
             const [packages, setPackages] = useState([]);
-            const [users, setUsers] = useState([]);
+            const [allSubs, setAllSubs] = useState([]);
+            const [mySubs, setMySubs] = useState([]);
             const [settings, setSettings] = useState({ vodafoneCashNumber: "01012345678", isMaintenanceMode: false });
-            const [selectedCategory, setSelectedCategory] = useState('all');
-            const [activeSubscriptions, setActiveSubscriptions] = useState([]);
-            const [allSubscriptions, setAllSubscriptions] = useState([]);
             
-            const [showAuthModal, setShowAuthModal] = useState(false);
-            const [showPurchaseModal, setShowPurchaseModal] = useState(null);
-            const [showChatModal, setShowChatModal] = useState(null);
-            const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-            // Admin Modals
-            const [showAddPackage, setShowAddPackage] = useState(false);
-            const [showAddCategory, setShowAddCategory] = useState(false);
-            const [editingPackage, setEditingPackage] = useState(null);
-            const [editingCategory, setEditingCategory] = useState(null);
+            const [selectedCat, setSelectedCat] = useState('all');
+            const [showAuth, setShowAuth] = useState(false);
+            const [showPurchase, setShowPurchase] = useState(null);
+            const [showChat, setShowChat] = useState(null);
 
             useEffect(() => {
-                const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-                    setUser(firebaseUser);
-                    if (firebaseUser) {
-                        const userDoc = await db.collection('users').doc(firebaseUser.uid).get();
-                        const userData = userDoc.data();
-                        const role = userData?.role || (ADMIN_EMAILS.includes(firebaseUser.email) ? 'admin' : 'user');
-                        
+                const unsub = auth.onAuthStateChanged(async (u) => {
+                    setUser(u);
+                    if (u) {
+                        const doc = await db.collection('users').doc(u.uid).get();
+                        const role = doc.data()?.role || (ADMIN_EMAILS.includes(u.email) ? 'admin' : 'user');
                         setIsAdmin(role === 'admin');
                         setIsModerator(role === 'admin' || role === 'moderator');
-
-                        await db.collection('users').doc(firebaseUser.uid).set({
-                            uid: firebaseUser.uid,
-                            email: firebaseUser.email,
-                            displayName: firebaseUser.displayName,
-                            photoURL: firebaseUser.photoURL,
-                            role: role
-                        }, { merge: true });
-                    } else {
-                        setIsAdmin(false);
-                        setIsModerator(false);
+                        await db.collection('users').doc(u.uid).set({ uid: u.uid, email: u.email, displayName: u.displayName, photoURL: u.photoURL, role }, {merge: true});
                     }
                     setLoading(false);
                 });
-                return () => unsubscribe();
+                return unsub;
             }, []);
 
             useEffect(() => {
-                const loadData = async () => {
-                    const cats = await services.categories.getAll();
-                    const pkgs = await services.packages.getAll();
-                    setCategories(cats);
-                    setPackages(pkgs);
-                };
-                loadData();
-
-                const unsubSettings = services.settings.subscribe(s => s && setSettings(s));
-                return () => unsubSettings();
+                services.categories.getAll().then(setCategories);
+                services.packages.getAll().then(setPackages);
+                services.settings.subscribe(s => s && setSettings(s));
             }, []);
 
             useEffect(() => {
-                if (user) {
-                    const unsub = services.subscriptions.subscribeToUser(user.uid, setActiveSubscriptions);
-                    return () => unsub();
-                }
+                if (user) return services.subscriptions.subscribeToUser(user.uid, setMySubs);
             }, [user]);
 
             useEffect(() => {
-                if (isModerator) {
-                    const unsub = services.subscriptions.subscribeToAll(setAllSubscriptions);
-                    let unsubUsers = () => {};
-                    if (isAdmin) unsubUsers = services.users.subscribeToAll(setUsers);
-                    return () => { unsub(); unsubUsers(); };
-                }
-            }, [isModerator, isAdmin]);
+                if (isModerator) return services.subscriptions.subscribeToAll(setAllSubs);
+            }, [isModerator]);
 
-            const handleLogin = async () => {
-                const provider = new firebase.auth.GoogleAuthProvider();
-                await auth.signInWithPopup(provider);
-                setShowAuthModal(false);
-            };
+            const handleLogin = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).then(() => setShowAuth(false));
+            const handleLogout = () => auth.signOut().then(() => setView('home'));
 
-            const handleLogout = async () => {
-                await auth.signOut();
-                setView('home');
-            };
+            if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>;
 
-            const refreshData = async () => {
-                const cats = await services.categories.getAll();
-                const pkgs = await services.packages.getAll();
-                setCategories(cats);
-                setPackages(pkgs);
-            };
-
-            if (loading) return (
-                <div className="min-h-screen flex items-center justify-center">
-                    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-            );
-
-            const filteredPackages = selectedCategory === 'all' 
-                ? packages 
-                : packages.filter(p => p.categoryId === selectedCategory);
-
-            const hasPendingSubs = allSubscriptions.some(s => s.status === 'pending');
-            const hasUnreadMessages = allSubscriptions.some(s => s.lastMessageSenderId && s.lastMessageSenderId !== user?.uid);
+            const filteredPkgs = selectedCat === 'all' ? packages : packages.filter(p => p.categoryId === selectedCat);
+            const hasPending = allSubs.some(s => s.status === 'pending');
+            const hasUnread = allSubs.some(s => s.lastMessageSenderId && s.lastMessageSenderId !== user?.uid);
 
             return (
-                <div className="min-h-screen bg-slate-50 text-slate-900">
-                    {/* Nav */}
-                    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+                <div className="min-h-screen bg-slate-50">
+                    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 h-16 flex items-center">
+                        <div className="max-w-7xl mx-auto px-4 w-full flex justify-between items-center">
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('home')}>
-                                <div className="bg-indigo-600 p-2 rounded-lg text-white">
-                                    <Icon name="Wifi" className="w-6 h-6" />
-                                </div>
+                                <div className="bg-indigo-600 p-2 rounded-lg text-white"><Icon name="Wifi" className="w-5 h-5" /></div>
                                 <span className="text-xl font-bold text-indigo-900">نت باكت</span>
                             </div>
-                            
                             <div className="hidden md:flex items-center gap-6">
-                                <button onClick={() => setView('home')} className={`font-bold ${view === 'home' ? 'text-indigo-600' : 'text-slate-600'}`}>الرئيسية</button>
-                                {user && <button onClick={() => setView('my-subscriptions')} className={`font-bold ${view === 'my-subscriptions' ? 'text-indigo-600' : 'text-slate-600'}`}>اشتراكاتي</button>}
+                                <button onClick={() => setView('home')} className={cn("font-bold", view === 'home' ? "text-indigo-600" : "text-slate-600")}>الرئيسية</button>
+                                {user && <button onClick={() => setView('my-subscriptions')} className={cn("font-bold", view === 'my-subscriptions' ? "text-indigo-600" : "text-slate-600")}>اشتراكاتي</button>}
                                 {isModerator && (
-                                    <button onClick={() => setView('dashboard')} className={`font-bold relative ${view === 'dashboard' ? 'text-indigo-600' : 'text-slate-600'}`}>
+                                    <button onClick={() => setView('dashboard')} className={cn("font-bold relative", view === 'dashboard' ? "text-indigo-600" : "text-slate-600")}>
                                         لوحة التحكم
-                                        {(hasPendingSubs || hasUnreadMessages) && (
-                                            <span className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse" />
-                                        )}
+                                        {(hasPending || hasUnread) && <span className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse" />}
                                     </button>
                                 )}
                                 {user ? (
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full">
-                                            <img src={user.photoURL} className="w-6 h-6 rounded-full" />
-                                            <span className="text-sm font-bold">{user.displayName.split(' ')[0]}</span>
-                                        </div>
-                                        <button onClick={handleLogout} className="text-slate-400 hover:text-red-500"><Icon name="LogOut" className="w-5 h-5" /></button>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full"><img src={user.photoURL} className="w-6 h-6 rounded-full" /><span className="text-xs font-bold">{user.displayName.split(' ')[0]}</span></div>
+                                        <button onClick={handleLogout} className="text-slate-400 hover:text-red-500"><Icon name="LogOut" className="w-4 h-4" /></button>
                                     </div>
                                 ) : (
-                                    <button onClick={() => setShowAuthModal(true)} className="bg-indigo-600 text-white px-6 py-2 rounded-full font-bold shadow-lg shadow-indigo-100">دخول</button>
+                                    <button onClick={() => setShowAuth(true)} className="bg-indigo-600 text-white px-5 py-2 rounded-full font-bold">دخول</button>
                                 )}
                             </div>
-                            <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}><Icon name={isMenuOpen ? "X" : "Menu"} /></button>
                         </div>
                     </nav>
 
-                    {/* Mobile Menu */}
-                    {isMenuOpen && (
-                        <div className="md:hidden bg-white border-b p-4 space-y-4">
-                            <button onClick={() => {setView('home'); setIsMenuOpen(false)}} className="block w-full text-right font-bold">الرئيسية</button>
-                            {user && <button onClick={() => {setView('my-subscriptions'); setIsMenuOpen(false)}} className="block w-full text-right font-bold">اشتراكاتي</button>}
-                            {isModerator && <button onClick={() => {setView('dashboard'); setIsMenuOpen(false)}} className="block w-full text-right font-bold">لوحة التحكم</button>}
-                            {!user ? <button onClick={() => setShowAuthModal(true)} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">دخول</button> : <button onClick={handleLogout} className="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold">خروج</button>}
-                        </div>
-                    )}
-
                     <main className="max-w-7xl mx-auto px-4 py-8">
-                        {view === 'home' && (
-                            <div className="space-y-12">
-                                <header className="text-center space-y-4">
-                                    <h1 className="text-4xl font-black text-slate-900">باقات الإنترنت المميزة</h1>
-                                    <p className="text-slate-500 max-w-2xl mx-auto">اختر من بين أفضل العروض والخدمات لجميع الشبكات في مصر.</p>
-                                </header>
-                                <div className="flex flex-wrap justify-center gap-3">
-                                    <button onClick={() => setSelectedCategory('all')} className={`px-6 py-2 rounded-full font-bold border-2 transition-all ${selectedCategory === 'all' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}>الكل</button>
-                                    {categories.map(c => (
-                                        <button key={c.id} onClick={() => setSelectedCategory(c.id)} className={`px-6 py-2 rounded-full font-bold border-2 transition-all ${selectedCategory === c.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}>{c.name}</button>
-                                    ))}
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                    {filteredPackages.map(pkg => (
-                                        <div key={pkg.id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-slate-100 group">
-                                            <div className="h-48 overflow-hidden relative">
-                                                <img src={pkg.imageUrl || `https://picsum.photos/seed/${pkg.id}/600/400`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                {pkg.stock <= 0 && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><span className="bg-red-600 text-white px-4 py-1 rounded-full font-bold">نفذت الكمية</span></div>}
-                                            </div>
-                                            <div className="p-8 space-y-6">
-                                                <h3 className="text-2xl font-bold">{pkg.name}</h3>
-                                                <p className="text-slate-500 text-sm line-clamp-2">{pkg.description}</p>
-                                                <div className="flex justify-between items-center">
-                                                    <div className="flex items-baseline gap-1"><span className="text-3xl font-black text-indigo-600">{pkg.price}</span><span className="text-slate-400 text-sm">جنية</span></div>
-                                                    <div className="flex gap-4 text-xs font-bold text-slate-400">
-                                                        <div className="flex items-center gap-1"><Icon name="Zap" className="w-3 h-3" /> {pkg.speed}</div>
-                                                        <div className="flex items-center gap-1"><Icon name="BarChart3" className="w-3 h-3" /> {pkg.quota}</div>
-                                                    </div>
-                                                </div>
-                                                <button onClick={() => user ? setShowPurchaseModal(pkg) : setShowAuthModal(true)} disabled={pkg.stock <= 0} className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all ${pkg.stock <= 0 ? 'bg-slate-200 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'}`}>شراء الباقة</button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {view === 'my-subscriptions' && (
-                            <div className="space-y-8">
-                                <h1 className="text-3xl font-bold">اشتراكاتي</h1>
-                                {activeSubscriptions.length === 0 ? (
-                                    <div className="bg-white p-12 rounded-[2.5rem] text-center border-2 border-dashed border-slate-200">
-                                        <Icon name="Clock" className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                                        <p className="text-slate-500">لا توجد اشتراكات حالياً.</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {activeSubscriptions.map(sub => (
-                                            <div key={sub.id} className="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100 space-y-6">
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <h3 className="text-xl font-bold">{sub.packageName}</h3>
-                                                        <p className="text-slate-400 text-sm">تاريخ الطلب: {sub.createdAt?.toDate()?.toLocaleDateString('ar-EG')}</p>
-                                                    </div>
-                                                    <StatusBadge status={sub.status} />
-                                                </div>
-                                                <div className="flex gap-3">
-                                                    {sub.status === 'approved' && (
-                                                        <button onClick={() => setShowChatModal(sub)} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 relative">
-                                                            <Icon name="MessageSquare" className="w-5 h-5" /> تواصل مع المشرف
-                                                            {sub.lastMessageSenderId && sub.lastMessageSenderId !== user?.uid && (
-                                                                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
-                                                            )}
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {view === 'dashboard' && isModerator && (
-                            <DashboardView 
-                                categories={categories} 
-                                packages={packages} 
-                                subscriptions={allSubscriptions} 
-                                users={users} 
-                                isAdmin={isAdmin} 
-                                isModerator={isModerator}
-                                onRefresh={refreshData}
-                                onOpenChat={setShowChatModal}
-                                user={user}
-                                settings={settings}
-                                setSettings={setSettings}
-                            />
-                        )}
+                        {view === 'home' && <HomeView categories={categories} packages={filteredPkgs} selectedCat={selectedCat} setSelectedCat={setSelectedCat} onBuy={p => user ? setShowPurchase(p) : setShowAuth(true)} />}
+                        {view === 'my-subscriptions' && <MySubsView subs={mySubs} onChat={setShowChat} user={user} />}
+                        {view === 'dashboard' && isModerator && <DashboardView categories={categories} packages={packages} subs={allSubs} isAdmin={isAdmin} user={user} settings={settings} onChat={setShowChat} onRefresh={() => { services.categories.getAll().then(setCategories); services.packages.getAll().then(setPackages); }} />}
                     </main>
 
-                    {/* Modals */}
-                    <Modal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} title="تسجيل الدخول">
-                        <div className="text-center space-y-6">
-                            <div className="bg-indigo-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto"><Icon name="User" className="text-indigo-600 w-8 h-8" /></div>
-                            <p className="text-slate-500">يرجى تسجيل الدخول لمتابعة عمليات الشراء.</p>
-                            <button onClick={handleLogin} className="w-full bg-white border-2 border-slate-200 py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-50 transition-all">
-                                <img src="https://www.google.com/favicon.ico" className="w-5 h-5" /> الدخول بواسطة جوجل
-                            </button>
+                    <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} onLogin={handleLogin} />
+                    <PurchaseModal isOpen={!!showPurchase} onClose={() => setShowPurchase(null)} pkg={showPurchase} user={user} settings={settings} />
+                    <ChatModal isOpen={!!showChat} onClose={() => setShowChat(null)} sub={showChat} user={user} isAdmin={isAdmin} />
+                </div>
+            );
+        }
+
+        // --- Sub Views ---
+        function HomeView({ categories, packages, selectedCat, setSelectedCat, onBuy }) {
+            return (
+                <div className="space-y-10">
+                    <div className="text-center space-y-4">
+                        <h1 className="text-4xl font-black text-slate-900">باقات الإنترنت المميزة</h1>
+                        <p className="text-slate-500 max-w-xl mx-auto">أفضل العروض والخدمات لجميع الشبكات في مصر.</p>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-2">
+                        <button onClick={() => setSelectedCat('all')} className={cn("px-5 py-2 rounded-full font-bold border-2 transition-all", selectedCat === 'all' ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200")}>الكل</button>
+                        {categories.map(c => <button key={c.id} onClick={() => setSelectedCat(c.id)} className={cn("px-5 py-2 rounded-full font-bold border-2 transition-all", selectedCat === c.id ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200")}>{c.name}</button>)}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {packages.map(p => (
+                            <motion.div layout key={p.id} className="bg-white rounded-[2rem] overflow-hidden shadow-xl border border-slate-100 flex flex-col">
+                                <div className="h-44 relative overflow-hidden">
+                                    <img src={p.imageUrl || `https://picsum.photos/seed/${p.id}/600/400`} className="w-full h-full object-cover" />
+                                    {p.stock <= 0 && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><span className="bg-red-600 text-white px-4 py-1 rounded-full font-bold">نفذت الكمية</span></div>}
+                                </div>
+                                <div className="p-6 space-y-4 flex-1 flex flex-col">
+                                    <h3 className="text-xl font-bold">{p.name}</h3>
+                                    <p className="text-slate-500 text-sm line-clamp-2 flex-1">{p.description}</p>
+                                    <div className="flex justify-between items-center pt-4">
+                                        <div className="flex items-baseline gap-1"><span className="text-2xl font-black text-indigo-600">{p.price}</span><span className="text-slate-400 text-xs">جنية</span></div>
+                                        <div className="flex gap-3 text-[10px] font-bold text-slate-400">
+                                            <div className="flex items-center gap-1"><Icon name="Zap" className="w-3 h-3" /> {p.speed}</div>
+                                            <div className="flex items-center gap-1"><Icon name="BarChart3" className="w-3 h-3" /> {p.quota}</div>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => onBuy(p)} disabled={p.stock <= 0} className={cn("w-full py-3 rounded-xl font-bold transition-all", p.stock <= 0 ? "bg-slate-100 text-slate-400" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100")}>شراء الآن</button>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function MySubsView({ subs, onChat, user }) {
+            return (
+                <div className="space-y-8">
+                    <h1 className="text-3xl font-bold">اشتراكاتي</h1>
+                    {subs.length === 0 ? (
+                        <div className="bg-white p-12 rounded-3xl text-center border-2 border-dashed border-slate-200">
+                            <Icon name="Clock" className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                            <p className="text-slate-500">لا توجد طلبات حالياً.</p>
                         </div>
-                    </Modal>
-
-                    <Modal isOpen={!!showPurchaseModal} onClose={() => setShowPurchaseModal(null)} title="تأكيد شراء الباقة">
-                        {settings.isMaintenanceMode ? (
-                            <div className="text-center space-y-4">
-                                <Icon name="AlertCircle" className="w-12 h-12 text-red-500 mx-auto" />
-                                <h3 className="text-xl font-bold">الموقع قيد الصيانة</h3>
-                                <p className="text-slate-500">عمليات الشراء متوقفة حالياً.</p>
-                            </div>
-                        ) : (
-                            <PurchaseForm pkg={showPurchaseModal} settings={settings} user={user} onClose={() => setShowPurchaseModal(null)} />
-                        )}
-                    </Modal>
-
-                    <ChatModal 
-                        isOpen={!!showChatModal} 
-                        onClose={() => setShowChatModal(null)} 
-                        subscription={showChatModal} 
-                        user={user} 
-                        isAdmin={isAdmin} 
-                        isModerator={isModerator} 
-                    />
-
-                    {isAdmin && (
-                        <>
-                            <Modal isOpen={showAddPackage || !!editingPackage} onClose={() => {setShowAddPackage(false); setEditingPackage(null)}} title={editingPackage ? "تعديل باقة" : "إضافة باقة"}>
-                                <PackageForm categories={categories} editingPackage={editingPackage} onSuccess={refreshData} onClose={() => {setShowAddPackage(false); setEditingPackage(null)}} />
-                            </Modal>
-                            <Modal isOpen={showAddCategory || !!editingCategory} onClose={() => {setShowAddCategory(false); setEditingCategory(null)}} title={editingCategory ? "تعديل فئة" : "إضافة فئة"}>
-                                <CategoryForm editingCategory={editingCategory} onSuccess={refreshData} onClose={() => {setShowAddCategory(false); setEditingCategory(null)}} />
-                            </Modal>
-                        </>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {subs.map(s => (
+                                <div key={s.id} className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100 space-y-4">
+                                    <div className="flex justify-between items-start">
+                                        <div><h3 className="font-bold text-lg">{s.packageName}</h3><p className="text-slate-400 text-xs">{s.createdAt?.toDate()?.toLocaleDateString('ar-EG')}</p></div>
+                                        <StatusBadge status={s.status} />
+                                    </div>
+                                    {s.status === 'approved' && (
+                                        <button onClick={() => onChat(s)} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 relative">
+                                            <Icon name="MessageSquare" className="w-4 h-4" /> تواصل مع المشرف
+                                            {s.lastMessageSenderId && s.lastMessageSenderId !== user?.uid && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white animate-pulse" />}
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
             );
         }
 
-        // --- Sub-Components ---
-
-        function PurchaseForm({ pkg, settings, user, onClose }) {
-            const [phone, setPhone] = useState('');
-            const [loading, setLoading] = useState(false);
-            const handleSubmit = async (e) => {
-                e.preventDefault();
-                setLoading(true);
-                await services.subscriptions.create({
-                    userId: user.uid,
-                    userEmail: user.email,
-                    packageId: pkg.id,
-                    packageName: pkg.name,
-                    price: pkg.price,
-                    senderPhone: phone
-                });
-                setLoading(false);
-                alert('تم إرسال طلبك بنجاح!');
-                onClose();
-            };
-            return (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="bg-indigo-50 p-6 rounded-2xl space-y-4">
-                        <div className="flex justify-between"><span>الباقة:</span><span className="font-bold">{pkg.name}</span></div>
-                        <div className="flex justify-between"><span>المبلغ:</span><span className="font-bold">{pkg.price} ج.م</span></div>
-                        <div className="pt-4 border-t border-indigo-100">
-                            <p className="text-xs text-slate-500 mb-2">حول المبلغ إلى:</p>
-                            <div className="bg-white p-3 rounded-xl border border-indigo-200 flex justify-between items-center">
-                                <span className="font-mono font-bold text-lg">{settings.vodafoneCashNumber}</span>
-                                <button type="button" onClick={() => navigator.clipboard.writeText(settings.vodafoneCashNumber)} className="text-indigo-600 text-xs">نسخ</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold mb-2">الرقم الذي قمت بالتحويل منه</label>
-                        <input required type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full px-5 py-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="01xxxxxxxxx" />
-                    </div>
-                    <button disabled={loading} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 disabled:opacity-50">تأكيد الإرسال</button>
-                </form>
-            );
-        }
-
-        function DashboardView({ categories, packages, subscriptions, users, isAdmin, isModerator, onRefresh, onOpenChat, user, settings, setSettings }) {
+        function DashboardView({ categories, packages, subs, isAdmin, user, settings, onChat, onRefresh }) {
             const [tab, setTab] = useState(isAdmin ? 'stats' : 'subs');
-            const [statsRange, setStatsRange] = useState('all');
+            const [showAddPkg, setShowAddPkg] = useState(false);
+            const [showAddCat, setShowAddCat] = useState(false);
+            const [editPkg, setEditPkg] = useState(null);
+            const [editCat, setEditCat] = useState(null);
 
-            const filteredSubs = useMemo(() => {
-                if (statsRange === 'all') return subscriptions;
-                const now = new Date();
-                return subscriptions.filter(s => {
-                    const date = s.createdAt?.toDate();
-                    if (!date) return false;
-                    if (statsRange === 'today') return date.toDateString() === now.toDateString();
-                    if (statsRange === '3days') {
-                        const threeDaysAgo = new Date();
-                        threeDaysAgo.setDate(now.getDate() - 3);
-                        return date >= threeDaysAgo;
-                    }
-                    return true;
-                });
-            }, [subscriptions, statsRange]);
-
-            const totalSales = filteredSubs.filter(s => s.status === 'approved').reduce((acc, s) => acc + (s.price || 0), 0);
-            const activeCount = filteredSubs.filter(s => s.status === 'approved').length;
-            const pendingCount = filteredSubs.filter(s => s.status === 'pending').length;
-
-            const chartData = useMemo(() => {
-                const salesByDay = filteredSubs.filter(s => s.status === 'approved').reduce((acc, s) => {
-                    const date = new Date(s.createdAt?.toDate()).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' });
-                    acc[date] = (acc[date] || 0) + s.price;
+            const stats = useMemo(() => {
+                const approved = subs.filter(s => s.status === 'approved');
+                const total = approved.reduce((a, b) => a + (b.price || 0), 0);
+                const salesByDay = approved.reduce((acc, s) => {
+                    const d = s.createdAt?.toDate()?.toLocaleDateString('ar-EG', {month:'short', day:'numeric'});
+                    acc[d] = (acc[d] || 0) + s.price;
                     return acc;
                 }, {});
-                return Object.entries(salesByDay).map(([name, value]) => ({ name, value })).slice(-7);
-            }, [filteredSubs]);
-
-            const hasPending = subscriptions.some(s => s.status === 'pending');
-            const hasUnread = subscriptions.some(s => s.lastMessageSenderId && s.lastMessageSenderId !== user?.uid);
+                const chartData = Object.entries(salesByDay).map(([name, value]) => ({name, value})).slice(-7);
+                return { total, approvedCount: approved.length, pendingCount: subs.filter(s => s.status === 'pending').length, chartData };
+            }, [subs]);
 
             return (
                 <div className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="flex justify-between items-center">
+                        <h1 className="text-3xl font-bold">لوحة التحكم</h1>
+                        {isAdmin && (
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowAddCat(true)} className="bg-white border px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2"><Icon name="Plus" className="w-4 h-4" /> فئة</button>
+                                <button onClick={() => setShowAddPkg(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2"><Icon name="Plus" className="w-4 h-4" /> باقة</button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-3xl shadow-lg border flex items-center gap-4">
                             <div className="bg-emerald-100 p-3 rounded-2xl text-emerald-600"><Icon name="DollarSign" /></div>
-                            <div><div className="text-xs text-slate-400 font-bold">المبيعات</div><div className="text-2xl font-black">{totalSales} ج.م</div></div>
+                            <div><div className="text-xs text-slate-400 font-bold">المبيعات</div><div className="text-2xl font-black">{stats.total} ج.م</div></div>
                         </div>
                         <div className="bg-white p-6 rounded-3xl shadow-lg border flex items-center gap-4">
                             <div className="bg-indigo-100 p-3 rounded-2xl text-indigo-600"><Icon name="CheckCircle2" /></div>
-                            <div><div className="text-xs text-slate-400 font-bold">النشطة</div><div className="text-2xl font-black">{activeCount}</div></div>
+                            <div><div className="text-xs text-slate-400 font-bold">النشطة</div><div className="text-2xl font-black">{stats.approvedCount}</div></div>
                         </div>
                         <div className="bg-white p-6 rounded-3xl shadow-lg border flex items-center gap-4">
                             <div className="bg-orange-100 p-3 rounded-2xl text-orange-600"><Icon name="Clock" /></div>
-                            <div><div className="text-xs text-slate-400 font-bold">المعلقة</div><div className="text-2xl font-black">{pendingCount}</div></div>
-                        </div>
-                        <div className="bg-white p-6 rounded-3xl shadow-lg border flex items-center gap-4">
-                            <div className="bg-blue-100 p-3 rounded-2xl text-blue-600"><Icon name="Users" /></div>
-                            <div><div className="text-xs text-slate-400 font-bold">الأعضاء</div><div className="text-2xl font-black">{users.length}</div></div>
+                            <div><div className="text-xs text-slate-400 font-bold">المعلقة</div><div className="text-2xl font-black">{stats.pendingCount}</div></div>
                         </div>
                     </div>
 
                     <div className="flex gap-4 border-b overflow-x-auto">
-                        {isAdmin && <button onClick={() => setTab('stats')} className={`px-6 py-3 font-bold border-b-2 ${tab === 'stats' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>الإحصائيات</button>}
-                        <button onClick={() => setTab('subs')} className={`px-6 py-3 font-bold border-b-2 relative ${tab === 'subs' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>
-                            الطلبات
-                            {(hasPending || hasUnread) && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse" />}
-                        </button>
-                        {isAdmin && <button onClick={() => setTab('packages')} className={`px-6 py-3 font-bold border-b-2 ${tab === 'packages' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>الباقات</button>}
-                        {isAdmin && <button onClick={() => setTab('categories')} className={`px-6 py-3 font-bold border-b-2 ${tab === 'categories' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>الفئات</button>}
-                        {isAdmin && <button onClick={() => setTab('users')} className={`px-6 py-3 font-bold border-b-2 ${tab === 'users' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>الأعضاء</button>}
-                        {isAdmin && <button onClick={() => setTab('settings')} className={`px-6 py-3 font-bold border-b-2 ${tab === 'settings' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>الإعدادات</button>}
+                        {isAdmin && <button onClick={() => setTab('stats')} className={cn("px-6 py-3 font-bold border-b-2", tab === 'stats' ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-400")}>الإحصائيات</button>}
+                        <button onClick={() => setTab('subs')} className={cn("px-6 py-3 font-bold border-b-2 relative", tab === 'subs' ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-400")}>الطلبات {subs.some(s => s.status === 'pending' || (s.lastMessageSenderId && s.lastMessageSenderId !== user?.uid)) && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse" />}</button>
+                        {isAdmin && <button onClick={() => setTab('packages')} className={cn("px-6 py-3 font-bold border-b-2", tab === 'packages' ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-400")}>الباقات</button>}
+                        {isAdmin && <button onClick={() => setTab('settings')} className={cn("px-6 py-3 font-bold border-b-2", tab === 'settings' ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-400")}>الإعدادات</button>}
                     </div>
 
                     <div className="bg-white rounded-3xl shadow-xl border overflow-hidden min-h-[400px]">
                         {tab === 'stats' && (
-                            <div className="p-8 space-y-8">
-                                <div className="flex gap-2">
-                                    {['today', '3days', 'all'].map(r => (
-                                        <button key={r} onClick={() => setStatsRange(r)} className={`px-4 py-2 rounded-xl text-sm font-bold ${statsRange === r ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{r === 'today' ? 'اليوم' : r === '3days' ? '3 أيام' : 'الكل'}</button>
-                                    ))}
-                                </div>
-                                <div className="h-[300px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                            <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                            <YAxis axisLine={false} tickLine={false} />
-                                            <Tooltip contentStyle={{borderRadius: '1rem', border: 'none'}} />
-                                            <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
+                            <div className="p-8 h-[400px]">
+                                <h3 className="font-bold mb-6">نمو المبيعات</h3>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={stats.chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                                        <YAxis axisLine={false} tickLine={false} />
+                                        <Tooltip contentStyle={{borderRadius:'1rem', border:'none'}} />
+                                        <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
                         )}
-
                         {tab === 'subs' && (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-right">
                                     <thead className="bg-slate-50 border-b">
-                                        <tr>
-                                            <th className="px-6 py-4 font-bold">العميل</th>
-                                            <th className="px-6 py-4 font-bold">الباقة</th>
-                                            <th className="px-6 py-4 font-bold">الرقم</th>
-                                            <th className="px-6 py-4 font-bold">الحالة</th>
-                                            <th className="px-6 py-4 font-bold">الإجراءات</th>
-                                        </tr>
+                                        <tr><th className="px-6 py-4">العميل</th><th className="px-6 py-4">الباقة</th><th className="px-6 py-4">الرقم</th><th className="px-6 py-4">الحالة</th><th className="px-6 py-4">الإجراءات</th></tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {subscriptions.map(sub => (
-                                            <tr key={sub.id} className="hover:bg-slate-50/50">
+                                        {subs.map(s => (
+                                            <tr key={s.id} className="hover:bg-slate-50/50">
                                                 <td className="px-6 py-4">
-                                                    <div className="font-bold text-sm">{sub.userEmail}</div>
-                                                    {sub.status === 'refund_requested' && sub.refundDetails && (
-                                                        <div className="mt-2 p-2 bg-red-50 rounded-lg text-xs border border-red-100">
-                                                            <div className="font-bold text-red-700">طلب استرداد:</div>
-                                                            <div>من: {sub.refundDetails.senderPhone}</div>
-                                                            <div>إلى: {sub.refundDetails.refundPhone}</div>
+                                                    <div className="font-bold text-sm">{s.userEmail}</div>
+                                                    {s.status === 'refund_requested' && s.refundDetails && (
+                                                        <div className="mt-2 p-2 bg-red-50 rounded-lg text-[10px] border border-red-100 text-red-700">
+                                                            <div>من: {s.refundDetails.senderPhone}</div><div>إلى: {s.refundDetails.refundPhone}</div>
                                                         </div>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4">{sub.packageName}</td>
-                                                <td className="px-6 py-4 font-mono text-indigo-600">{sub.senderPhone}</td>
-                                                <td className="px-6 py-4"><StatusBadge status={sub.status} /></td>
+                                                <td className="px-6 py-4 text-sm">{s.packageName}</td>
+                                                <td className="px-6 py-4 font-mono text-indigo-600 text-sm">{s.senderPhone}</td>
+                                                <td className="px-6 py-4"><StatusBadge status={s.status} /></td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex gap-2">
-                                                        {isAdmin && sub.status === 'pending' && <button onClick={() => services.subscriptions.updateStatus(sub.id, 'approved')} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><Icon name="Check" className="w-4 h-4" /></button>}
-                                                        {isModerator && sub.status === 'pending' && <button onClick={() => services.subscriptions.updateStatus(sub.id, 'rejected')} className="p-2 bg-red-50 text-red-600 rounded-lg"><Icon name="X" className="w-4 h-4" /></button>}
-                                                        {sub.status === 'approved' && (
-                                                            <button onClick={() => onOpenChat(sub)} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg relative">
+                                                        {isAdmin && s.status === 'pending' && <button onClick={() => services.subscriptions.updateStatus(s.id, 'approved')} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><Icon name="Check" className="w-4 h-4" /></button>}
+                                                        {s.status === 'approved' && (
+                                                            <button onClick={() => onChat(s)} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg relative">
                                                                 <Icon name="MessageSquare" className="w-4 h-4" />
-                                                                {sub.lastMessageSenderId && sub.lastMessageSenderId !== user?.uid && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />}
+                                                                {s.lastMessageSenderId && s.lastMessageSenderId !== user?.uid && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />}
                                                             </button>
                                                         )}
-                                                        {isAdmin && sub.status === 'refund_requested' && (
-                                                            <button onClick={() => services.subscriptions.updateStatus(sub.id, 'refunded')} className="px-3 py-1 bg-orange-50 text-orange-600 rounded-lg text-xs font-bold">تأكيد الاسترداد</button>
-                                                        )}
+                                                        {isAdmin && s.status === 'refund_requested' && <button onClick={() => services.subscriptions.updateStatus(s.id, 'refunded')} className="px-3 py-1 bg-orange-50 text-orange-600 rounded-lg text-[10px] font-bold">تأكيد الاسترداد</button>}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -729,97 +380,128 @@
                                 </table>
                             </div>
                         )}
-
                         {tab === 'packages' && (
-                            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {packages.map(pkg => (
-                                    <div key={pkg.id} className="bg-slate-50 p-4 rounded-2xl border flex gap-4">
-                                        <img src={pkg.imageUrl} className="w-16 h-16 rounded-xl object-cover" />
+                            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {packages.map(p => (
+                                    <div key={p.id} className="bg-slate-50 p-4 rounded-2xl border flex gap-4 items-center">
+                                        <img src={p.imageUrl} className="w-12 h-12 rounded-lg object-cover" />
                                         <div className="flex-1">
-                                            <h4 className="font-bold text-sm">{pkg.name}</h4>
-                                            <p className="text-xs text-slate-400">{pkg.price} ج.م</p>
-                                            <div className="flex gap-2 mt-2">
-                                                <button onClick={() => setEditingPackage(pkg)} className="text-slate-400 hover:text-indigo-600"><Icon name="Edit2" className="w-4 h-4" /></button>
-                                                <button onClick={() => confirm('حذف؟') && services.packages.delete(pkg.id).then(onRefresh)} className="text-slate-400 hover:text-red-500"><Icon name="Trash2" className="w-4 h-4" /></button>
-                                            </div>
+                                            <h4 className="font-bold text-xs">{p.name}</h4>
+                                            <p className="text-[10px] text-slate-400">{p.price} ج.م</p>
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => setEditPkg(p)} className="p-1.5 text-slate-400 hover:text-indigo-600"><Icon name="Edit2" className="w-3 h-3" /></button>
+                                            <button onClick={() => confirm('حذف؟') && services.packages.delete(p.id).then(onRefresh)} className="p-1.5 text-slate-400 hover:text-red-500"><Icon name="Trash2" className="w-3 h-3" /></button>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         )}
-
-                        {tab === 'users' && (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-right">
-                                    <thead className="bg-slate-50 border-b">
-                                        <tr><th className="px-6 py-4 font-bold">المستخدم</th><th className="px-6 py-4 font-bold">الصلاحية</th><th className="px-6 py-4 font-bold">تغيير</th></tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {users.map(u => (
-                                            <tr key={u.id}>
-                                                <td className="px-6 py-4 flex items-center gap-3"><img src={u.photoURL} className="w-8 h-8 rounded-full" /><span className="font-bold">{u.displayName}</span></td>
-                                                <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-[10px] font-bold ${u.role === 'admin' ? 'bg-red-50 text-red-600' : 'bg-slate-100'}`}>{u.role}</span></td>
-                                                <td className="px-6 py-4">
-                                                    <select value={u.role} onChange={e => services.users.updateRole(u.id, e.target.value)} className="bg-slate-50 border rounded-lg px-2 py-1 text-xs">
-                                                        <option value="user">عضو</option><option value="moderator">مشرف</option><option value="admin">مدير</option>
-                                                    </select>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
                         {tab === 'settings' && (
                             <div className="p-8 max-w-md mx-auto space-y-6">
-                                <div>
-                                    <label className="block text-sm font-bold mb-2">رقم فودافون كاش</label>
-                                    <input type="text" value={settings.vodafoneCashNumber} onChange={e => setSettings({...settings, vodafoneCashNumber: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border rounded-2xl outline-none" />
+                                <div><label className="block text-sm font-bold mb-2">رقم فودافون كاش</label><input type="text" value={settings.vodafoneCashNumber} onChange={e => setSettings({...settings, vodafoneCashNumber: e.target.value})} className="w-full px-5 py-3 bg-slate-50 border rounded-xl outline-none" /></div>
+                                <div className="flex items-center justify-between bg-slate-50 p-4 rounded-xl border">
+                                    <div><div className="font-bold text-sm">وضع الصيانة</div><div className="text-[10px] text-slate-400">إيقاف الشراء مؤقتاً</div></div>
+                                    <button onClick={() => setSettings({...settings, isMaintenanceMode: !settings.isMaintenanceMode})} className={`w-10 h-5 rounded-full relative transition-all ${settings.isMaintenanceMode ? 'bg-indigo-600' : 'bg-slate-300'}`}><div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${settings.isMaintenanceMode ? 'right-5.5' : 'right-0.5'}`} /></button>
                                 </div>
-                                <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border">
-                                    <div><div className="font-bold">وضع الصيانة</div><div className="text-xs text-slate-400">إيقاف الشراء مؤقتاً</div></div>
-                                    <button onClick={() => setSettings({...settings, isMaintenanceMode: !settings.isMaintenanceMode})} className={`w-12 h-6 rounded-full relative transition-all ${settings.isMaintenanceMode ? 'bg-indigo-600' : 'bg-slate-300'}`}>
-                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.isMaintenanceMode ? 'right-7' : 'right-1'}`} />
-                                    </button>
-                                </div>
-                                <button onClick={() => services.settings.update(settings).then(() => alert('تم الحفظ'))} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold">حفظ الإعدادات</button>
+                                <button onClick={() => services.settings.update(settings).then(() => alert('تم الحفظ'))} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">حفظ الإعدادات</button>
                             </div>
                         )}
+                    </div>
+
+                    <Modal isOpen={showAddPkg || !!editPkg} onClose={() => {setShowAddPkg(false); setEditPkg(null)}} title={editPkg ? "تعديل باقة" : "إضافة باقة"}>
+                        <PackageForm categories={categories} editPkg={editPkg} onSuccess={() => {onRefresh(); setShowAddPkg(false); setEditPkg(null)}} />
+                    </Modal>
+                    <Modal isOpen={showAddCat || !!editCat} onClose={() => {setShowAddCat(false); setEditCat(null)}} title={editCat ? "تعديل فئة" : "إضافة فئة"}>
+                        <CategoryForm editCat={editCat} onSuccess={() => {onRefresh(); setShowAddCat(false); setEditCat(null)}} />
+                    </Modal>
+                </div>
+            );
+        }
+
+        // --- Modals ---
+        function Modal({ isOpen, onClose, title, children }) {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+                    <div className="relative bg-white p-8 rounded-[2.5rem] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold">{title}</h2><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full"><Icon name="X" /></button></div>
+                        {children}
                     </div>
                 </div>
             );
         }
 
-        function ChatModal({ isOpen, onClose, subscription, user, isAdmin, isModerator }) {
-            const [messages, setMessages] = useState([]);
+        function AuthModal({ isOpen, onClose, onLogin }) {
+            return (
+                <Modal isOpen={isOpen} onClose={onClose} title="تسجيل الدخول">
+                    <div className="text-center space-y-6">
+                        <div className="bg-indigo-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto text-indigo-600"><Icon name="User" className="w-8 h-8" /></div>
+                        <p className="text-slate-500">يرجى تسجيل الدخول لمتابعة عمليات الشراء.</p>
+                        <button onClick={onLogin} className="w-full bg-white border-2 border-slate-200 py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-50 transition-all">
+                            <img src="https://www.google.com/favicon.ico" className="w-5 h-5" /> الدخول بواسطة جوجل
+                        </button>
+                    </div>
+                </Modal>
+            );
+        }
+
+        function PurchaseModal({ isOpen, onClose, pkg, user, settings }) {
+            const [phone, setPhone] = useState('');
+            const [loading, setLoading] = useState(false);
+            if (!pkg) return null;
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                await services.subscriptions.create({ userId: user.uid, userEmail: user.email, packageId: pkg.id, packageName: pkg.name, price: pkg.price, senderPhone: phone });
+                setLoading(false);
+                alert('تم إرسال طلبك بنجاح!');
+                onClose();
+            };
+            return (
+                <Modal isOpen={isOpen} onClose={onClose} title="تأكيد الشراء">
+                    {settings.isMaintenanceMode ? <div className="text-center py-4 text-red-600 font-bold">الموقع قيد الصيانة حالياً</div> : (
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="bg-indigo-50 p-5 rounded-2xl space-y-3 text-sm">
+                                <div className="flex justify-between"><span>الباقة:</span><span className="font-bold">{pkg.name}</span></div>
+                                <div className="flex justify-between"><span>المبلغ:</span><span className="font-bold">{pkg.price} ج.م</span></div>
+                                <div className="pt-3 border-t border-indigo-100">
+                                    <p className="text-[10px] text-slate-500 mb-1">حول المبلغ إلى:</p>
+                                    <div className="bg-white p-3 rounded-xl border border-indigo-200 flex justify-between items-center"><span className="font-mono font-bold text-lg">{settings.vodafoneCashNumber}</span><button type="button" onClick={() => navigator.clipboard.writeText(settings.vodafoneCashNumber)} className="text-indigo-600 text-xs">نسخ</button></div>
+                                </div>
+                            </div>
+                            <div><label className="block text-xs font-bold mb-2">الرقم الذي قمت بالتحويل منه</label><input required type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full px-5 py-3 bg-slate-50 border rounded-xl outline-none" placeholder="01xxxxxxxxx" /></div>
+                            <button disabled={loading} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold disabled:opacity-50">تأكيد الطلب</button>
+                        </form>
+                    )}
+                </Modal>
+            );
+        }
+
+        function ChatModal({ isOpen, onClose, sub, user, isAdmin }) {
+            const [msgs, setMsgs] = useState([]);
             const [text, setText] = useState('');
             const [showRefund, setShowRefund] = useState(false);
-            const [refundData, setRefundData] = useState({ senderPhone: subscription?.senderPhone || '', refundPhone: '' });
+            const [refundData, setRefundData] = useState({ senderPhone: sub?.senderPhone || '', refundPhone: '' });
             const scrollRef = useRef();
 
             useEffect(() => {
-                if (isOpen && subscription) {
-                    const unsub = services.chat.subscribeToMessages(subscription.id, msgs => {
-                        setMessages(msgs);
-                        setTimeout(() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-                    });
-                    return () => unsub();
-                }
-            }, [isOpen, subscription]);
+                if (isOpen && sub) return services.chat.subscribe(sub.id, m => { setMsgs(m); setTimeout(() => scrollRef.current?.scrollIntoView({behavior:'smooth'}), 100); });
+            }, [isOpen, sub]);
 
-            if (!isOpen || !subscription) return null;
+            if (!isOpen || !sub) return null;
 
-            const handleSend = async (e) => {
+            const send = async (e) => {
                 e.preventDefault();
                 if (!text.trim()) return;
-                await services.chat.sendMessage(subscription.id, text, user.uid);
+                await services.chat.send(sub.id, text, user.uid);
                 setText('');
             };
 
-            const handleRefund = async (e) => {
+            const refund = async (e) => {
                 e.preventDefault();
-                await services.refund.requestRefund(subscription.id, refundData.senderPhone, refundData.refundPhone);
+                await db.collection('subscriptions').doc(sub.id).update({ status: 'refund_requested', refundDetails: { ...refundData, createdAt: firebase.firestore.FieldValue.serverTimestamp() } });
                 setShowRefund(false);
                 alert('تم طلب الاسترداد');
             };
@@ -828,79 +510,78 @@
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
                     <div className="relative bg-white w-full max-w-2xl h-[80vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden">
-                        <div className="p-6 bg-indigo-600 text-white flex justify-between items-center">
-                            <div className="flex items-center gap-4">
-                                <div><h3 className="font-bold">محادثة: {subscription.packageName}</h3><p className="text-xs opacity-80">{subscription.userEmail}</p></div>
-                                {(isAdmin || isModerator) && subscription.status === 'approved' && (
-                                    <button onClick={() => setShowRefund(!showRefund)} className="bg-red-500 px-3 py-1 rounded-xl text-xs font-bold">طلب استرداد</button>
-                                )}
+                        <div className="p-5 bg-indigo-600 text-white flex justify-between items-center">
+                            <div><h3 className="font-bold">{sub.packageName}</h3><p className="text-[10px] opacity-80">{sub.userEmail}</p></div>
+                            <div className="flex gap-2">
+                                {isAdmin && sub.status === 'approved' && <button onClick={() => setShowRefund(!showRefund)} className="bg-red-500 px-3 py-1 rounded-lg text-[10px] font-bold">طلب استرداد</button>}
+                                <button onClick={onClose}><Icon name="X" /></button>
                             </div>
-                            <button onClick={onClose}><Icon name="X" /></button>
                         </div>
                         {showRefund && (
-                            <div className="p-6 bg-red-50 border-b">
-                                <form onSubmit={handleRefund} className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <input required value={refundData.senderPhone} onChange={e => setRefundData({...refundData, senderPhone: e.target.value})} className="p-3 rounded-xl border text-sm" placeholder="الرقم المحول منه" />
-                                        <input required value={refundData.refundPhone} onChange={e => setRefundData({...refundData, refundPhone: e.target.value})} className="p-3 rounded-xl border text-sm" placeholder="الرقم المراد التحويل له" />
-                                    </div>
-                                    <button className="w-full bg-red-600 text-white py-2 rounded-xl font-bold text-sm">تأكيد طلب الاسترداد</button>
+                            <div className="p-5 bg-red-50 border-b">
+                                <form onSubmit={refund} className="grid grid-cols-2 gap-3">
+                                    <input required value={refundData.senderPhone} onChange={e => setRefundData({...refundData, senderPhone: e.target.value})} className="p-2 border rounded-lg text-xs" placeholder="الرقم المرسل" />
+                                    <input required value={refundData.refundPhone} onChange={e => setRefundData({...refundData, refundPhone: e.target.value})} className="p-2 border rounded-lg text-xs" placeholder="رقم الاسترداد" />
+                                    <button className="col-span-2 bg-red-600 text-white py-2 rounded-lg text-xs font-bold">تأكيد</button>
                                 </form>
                             </div>
                         )}
                         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
-                            {messages.map(msg => (
-                                <div key={msg.id} className={`flex ${msg.senderId === user.uid ? 'justify-start' : 'justify-end'}`}>
-                                    <div className={`max-w-[80%] p-4 rounded-2xl text-sm shadow-sm ${msg.senderId === user.uid ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white text-slate-800 rounded-tl-none'}`}>{msg.text}</div>
+                            {msgs.map(m => (
+                                <div key={m.id} className={cn("flex", m.senderId === user.uid ? "justify-start" : "justify-end")}>
+                                    <div className={cn("max-w-[80%] p-3 rounded-2xl text-sm shadow-sm", m.senderId === user.uid ? "bg-indigo-600 text-white rounded-tr-none" : "bg-white text-slate-800 rounded-tl-none")}>{m.text}</div>
                                 </div>
                             ))}
                             <div ref={scrollRef} />
                         </div>
-                        <form onSubmit={handleSend} className="p-6 bg-white border-t flex gap-3">
-                            <input value={text} onChange={e => setText(e.target.value)} className="flex-1 px-5 py-3 bg-slate-50 border rounded-xl outline-none" placeholder="اكتب رسالتك..." />
-                            <button className="bg-indigo-600 text-white p-3 rounded-xl"><Icon name="Send" className="rotate-180" /></button>
+                        <form onSubmit={send} className="p-4 bg-white border-t flex gap-2">
+                            <input value={text} onChange={e => setText(e.target.value)} className="flex-1 px-4 py-2 bg-slate-50 border rounded-xl outline-none text-sm" placeholder="اكتب رسالتك..." />
+                            <button className="bg-indigo-600 text-white p-2 rounded-xl"><Icon name="Send" className="rotate-180 w-5 h-5" /></button>
                         </form>
                     </div>
                 </div>
             );
         }
 
-        function PackageForm({ categories, editingPackage, onSuccess, onClose }) {
-            const [form, setForm] = useState(editingPackage || { name: '', description: '', price: 0, imageUrl: '', categoryId: '', speed: '', quota: '', stock: 0 });
-            const handleSubmit = async (e) => {
+        function StatusBadge({ status }) {
+            const styles = { pending: "bg-orange-50 text-orange-600 border-orange-100", approved: "bg-emerald-50 text-emerald-600 border-emerald-100", rejected: "bg-red-50 text-red-600 border-red-100", refund_requested: "bg-indigo-50 text-indigo-600 border-indigo-100", refunded: "bg-slate-100 text-slate-500 border-slate-200" };
+            const labels = { pending: "قيد المراجعة", approved: "مقبول", rejected: "مرفوض", refund_requested: "طلب استرداد", refunded: "تم الاسترداد" };
+            return <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold border", styles[status])}>{labels[status]}</span>;
+        }
+
+        function PackageForm({ categories, editPkg, onSuccess }) {
+            const [f, setF] = useState(editPkg || { name: '', description: '', price: 0, imageUrl: '', categoryId: '', speed: '', quota: '', stock: 0 });
+            const sub = async (e) => {
                 e.preventDefault();
-                const data = { ...form, price: Number(form.price), stock: Number(form.stock) };
-                if (editingPackage) await services.packages.update(editingPackage.id, data);
-                else await services.packages.add(data);
-                onSuccess(); onClose();
+                const d = { ...f, price: Number(f.price), stock: Number(f.stock) };
+                if (editPkg) await services.packages.update(editPkg.id, d); else await services.packages.add(d);
+                onSuccess();
             };
             return (
-                <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2"><label className="block text-xs font-bold mb-1">الاسم</label><input required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl" /></div>
-                    <div className="col-span-2"><label className="block text-xs font-bold mb-1">الوصف</label><textarea required value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl h-20" /></div>
-                    <div><label className="block text-xs font-bold mb-1">السعر</label><input required type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl" /></div>
-                    <div><label className="block text-xs font-bold mb-1">الفئة</label><select required value={form.categoryId} onChange={e => setForm({...form, categoryId: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl">{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                    <div><label className="block text-xs font-bold mb-1">السرعة</label><input required value={form.speed} onChange={e => setForm({...form, speed: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl" /></div>
-                    <div><label className="block text-xs font-bold mb-1">السعة</label><input required value={form.quota} onChange={e => setForm({...form, quota: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl" /></div>
-                    <div><label className="block text-xs font-bold mb-1">المخزون</label><input required type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl" /></div>
-                    <div className="col-span-2"><label className="block text-xs font-bold mb-1">رابط الصورة</label><input required value={form.imageUrl} onChange={e => setForm({...form, imageUrl: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl" /></div>
-                    <button className="col-span-2 bg-indigo-600 text-white py-4 rounded-xl font-bold mt-4">حفظ</button>
+                <form onSubmit={sub} className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="col-span-2"><label className="font-bold">الاسم</label><input required value={f.name} onChange={e => setF({...f, name: e.target.value})} className="w-full p-2 border rounded-lg" /></div>
+                    <div className="col-span-2"><label className="font-bold">الوصف</label><textarea required value={f.description} onChange={e => setF({...f, description: e.target.value})} className="w-full p-2 border rounded-lg h-16" /></div>
+                    <div><label className="font-bold">السعر</label><input required type="number" value={f.price} onChange={e => setF({...f, price: e.target.value})} className="w-full p-2 border rounded-lg" /></div>
+                    <div><label className="font-bold">الفئة</label><select required value={f.categoryId} onChange={e => setF({...f, categoryId: e.target.value})} className="w-full p-2 border rounded-lg">{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                    <div><label className="font-bold">السرعة</label><input required value={f.speed} onChange={e => setF({...f, speed: e.target.value})} className="w-full p-2 border rounded-lg" /></div>
+                    <div><label className="font-bold">السعة</label><input required value={f.quota} onChange={e => setF({...f, quota: e.target.value})} className="w-full p-2 border rounded-lg" /></div>
+                    <div className="col-span-2"><label className="font-bold">رابط الصورة</label><input required value={f.imageUrl} onChange={e => setF({...f, imageUrl: e.target.value})} className="w-full p-2 border rounded-lg" /></div>
+                    <button className="col-span-2 bg-indigo-600 text-white py-3 rounded-xl font-bold mt-2">حفظ</button>
                 </form>
             );
         }
 
-        function CategoryForm({ editingCategory, onSuccess, onClose }) {
-            const [name, setName] = useState(editingCategory?.name || '');
-            const handleSubmit = async (e) => {
+        function CategoryForm({ editCat, onSuccess }) {
+            const [n, setN] = useState(editCat?.name || '');
+            const sub = async (e) => {
                 e.preventDefault();
-                if (editingCategory) await services.categories.update(editingCategory.id, { name });
-                else await services.categories.add({ name, order: Date.now() });
-                onSuccess(); onClose();
+                if (editCat) await services.categories.update(editCat.id, {name: n}); else await services.categories.add({name: n, order: Date.now()});
+                onSuccess();
             };
             return (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <input required value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-slate-50 border rounded-xl" placeholder="اسم الفئة" />
-                    <button className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold">حفظ</button>
+                <form onSubmit={sub} className="space-y-4">
+                    <input required value={n} onChange={e => setN(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="اسم الفئة" />
+                    <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">حفظ</button>
                 </form>
             );
         }
