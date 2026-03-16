@@ -140,3 +140,67 @@
     </script>
 </body>
 </html>  
+// 1. Firebase Configuration (حط بياناتك هنا)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCi1a7pMvUyDpkVEPwjhTaYz0Qec...", 
+            authDomain: "internet-f0683.firebaseapp.com",
+            projectId: "internet-f0683",
+            storageBucket: "internet-f0683.firebasestorage.app",
+            messagingSenderId: "288697957962",
+            appId: "1:288697957962:web:b18cc2fa518a4289..."
+        };
+
+        // تشغيل فايربيز
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // 2. تطبيق الواجهة (App) - نسخة كاملة بدون اختصار
+        function App() {
+            const [view, setView] = React.useState('user');
+            const [categories, setCategories] = React.useState([
+                { id: '1', name: 'باقات فودافون' },
+                { id: '2', name: 'باقات اتصالات' }
+            ]);
+
+            return (
+                <div className="min-h-screen bg-slate-50 font-sans text-right" dir="rtl">
+                    <nav className="bg-white p-4 shadow-md flex justify-between items-center">
+                        <h1 className="text-xl font-black text-blue-600">نِت باكت</h1>
+                        <button 
+                            onClick={() => setView(view === 'user' ? 'admin' : 'user')}
+                            className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold"
+                        >
+                            {view === 'user' ? 'لوحة المدير' : 'العودة للمتجر'}
+                        </button>
+                    </nav>
+
+                    <div className="max-w-4xl mx-auto p-6">
+                        {view === 'user' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {categories.map(cat => (
+                                    <div key={cat.id} className="bg-white p-8 rounded-2xl shadow-sm border-2 border-transparent hover:border-blue-500 transition-all cursor-pointer text-center">
+                                        <div className="text-4xl mb-4">🌐</div>
+                                        <h3 className="text-2xl font-bold text-gray-800">{cat.name}</h3>
+                                        <p className="text-gray-500 mt-2">تصفح أفضل عروض الإنترنت</p>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="bg-white p-8 rounded-2xl shadow-xl border-t-4 border-blue-600">
+                                <h2 className="text-2xl font-black mb-4">لوحة تحكم المسؤول</h2>
+                                <div className="bg-blue-50 p-4 rounded-lg mb-6 text-blue-800">
+                                    أهلاً بك يا مدير! من هنا هتقدر تتابع الطلبات وتغير الأسعار.
+                                </div>
+                                <p className="text-gray-600">جاري تحميل بيانات المبيعات...</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
