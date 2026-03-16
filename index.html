@@ -3,151 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نت باكت | أرخص باقات إنترنت في مصر</title>
-    <meta name="description" content="اشحن باقات فودافون، اتصالات، وأورانج بأفضل الأسعار وبسرعة فائقة">
-    <meta name="keywords" content="نت باكت, باقات انترنت, فودافون, اتصالات, اورانج, شحن باقات">
-    
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <title>نت باكت | أسرع شحن باقات</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
     <style>
-        /* دمج ملف index.css اللي بعته */
-        body {
-            font-family: 'Tajawal', sans-serif;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            scroll-behavior: smooth;
-        }
-        /* إضافات Tailwind المخصصة */
-        .glass-morphism {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
+        body { font-family: 'Tajawal', sans-serif; }
+        .animate-fade { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
-<body>
+<body class="bg-gray-50">
     <div id="root"></div>
 
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
-    <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
-
     <script type="text/babel">
-      // 1. Firebase Configuration (بياناتك السرية)
+        // 1. إعدادات فايربيز (تأكد من مسح أي حروف غريبة مثل U+202A)
         const firebaseConfig = {
-            apiKey: "AIzaSyCi1a7pMvUyDpkVEPwjhTaYzOQec4TzDzU",
-            authDomain: "internet-f0683.firebaseapp.com",
-            projectId: "internet-f0683",
-            storageBucket: "internet-f0683.firebasestorage.app",
-            messagingSenderId: "288697957962‪",
-            appId: "1:288697957962:web:b18cc2fa518a42895330b3"
-        };
-
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-
-        // 2. Utils (وظيفة الـ cn اللي بعتها)
-        function cn(...inputs) {
-            return inputs.filter(Boolean).join(' ');
-        }
-
-        // 3. Firestore Services (المحرك بالكامل دون اختصار)
-        const services = {
-            settings: {
-                get: () => db.collection('settings').doc('global').get().then(s => s.data()),
-                subscribe: (cb) => db.collection('settings').doc('global').onSnapshot(s => cb(s.data()))
-            },
-            categories: {
-                getAll: () => db.collection('categories').orderBy('order', 'asc').get().then(s => s.docs.map(d => ({id: d.id, ...d.data()})))
-            },
-            packages: {
-                getByCategory: (catId) => db.collection('packages').where('categoryId', '==', catId).where('isActive', '==', true).get().then(s => s.docs.map(d => ({id: d.id, ...d.data()})))
-            },
-            subscriptions: {
-                create: async (data) => {
-                    const pkgRef = db.collection('packages').doc(data.packageId);
-                    const pkg = await pkgRef.get();
-                    if (pkg.exists && pkg.data().stock > 0) {
-                        await pkgRef.update({ stock: pkg.data().stock - 1 });
-                    }
-                    return db.collection('subscriptions').add({
-                        ...data,
-                        status: 'pending',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
-            },
-            chat: {
-                sendMessage: (subId, text, role) => db.collection(`subscriptions/${subId}/messages`).add({
-                    text, senderRole: role, timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                }),
-                subscribe: (subId, cb) => db.collection(`subscriptions/${subId}/messages`).orderBy('timestamp', 'asc').onSnapshot(s => cb(s.docs.map(d => d.data())))
-            }
-        };
-
-        // 4. Main App Component (واجهة المستخدم + لوحة التحكم)
-        function App() {
-            const [view, setView] = React.useState('user'); // 'user' or 'admin'
-            const [categories, setCategories] = React.useState([]);
-            
-            React.useEffect(() => {
-                services.categories.getAll().then(setCategories);
-            }, []);
-
-            return (
-                <div className="min-h-screen bg-gray-50 text-right" dir="rtl">
-                    {/* Header */}
-                    <header className="bg-white shadow-sm p-4 sticky top-0 z-50">
-                        <div className="max-w-7xl mx-auto flex justify-between items-center">
-                            <h1 className="text-2xl font-black text-blue-600">نت باكت</h1>
-                            <button onClick={() => setView(view === 'user' ? 'admin' : 'user')} className="text-sm bg-gray-100 px-3 py-1 rounded">
-                                {view === 'user' ? 'دخول المسؤول' : 'العودة للمتجر'}
-                            </button>
-                        </div>
-                    </header>
-
-                    <main className="max-w-7xl mx-auto p-4">
-                        {view === 'user' ? (
-                            <section>
-                                <h2 className="text-xl font-bold mb-6">اختر فئة الباقة:</h2>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {categories.map(cat => (
-                                        <div key={cat.id} className="p-4 bg-white rounded-xl shadow-sm border hover:border-blue-500 cursor-pointer transition-all">
-                                            <p className="font-bold text-center">{cat.name}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        ) : (
-                            <div className="bg-white p-6 rounded-xl shadow-lg">
-                                <h2 className="text-2xl font-bold mb-4 text-red-600">لوحة تحكم المدير</h2>
-                                <p>هنا تظهر الطلبات، المبيعات، وإدارة الشات بالكامل...</p>
-                                {/* كود الإحصائيات والطلبات يوضع هنا */}
-                            </div>
-                        )}
-                    </main>
-                </div>
-            );
-        }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>  
-// 1. Firebase Configuration (حط بياناتك هنا)
-        const firebaseConfig = {
-            apiKey: "AIzaSyCi1a7pMvUyDpkVEPwjhTaYz0Qec...", 
+            apiKey: "AIzaSyCi1a7pMvUyDpkVEPwjhTaYz0Qec", 
             authDomain: "internet-f0683.firebaseapp.com",
             projectId: "internet-f0683",
             storageBucket: "internet-f0683.firebasestorage.app",
             messagingSenderId: "288697957962",
-            appId: "1:288697957962:web:b18cc2fa518a4289..."
+            appId: "1:288697957962:web:b18cc2fa518a4289"
         };
 
         // تشغيل فايربيز
@@ -155,46 +40,59 @@
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.firestore();
-        const auth = firebase.auth();
 
-        // 2. تطبيق الواجهة (App) - نسخة كاملة بدون اختصار
         function App() {
             const [view, setView] = React.useState('user');
-            const [categories, setCategories] = React.useState([
-                { id: '1', name: 'باقات فودافون' },
-                { id: '2', name: 'باقات اتصالات' }
-            ]);
+            const [loading, setLoading] = React.useState(true);
+
+            // تجربة الاتصال بقاعدة البيانات
+            React.useEffect(() => {
+                setTimeout(() => setLoading(false), 1000);
+            }, []);
+
+            if (loading) return <div class="flex h-screen items-center justify-center text-xl font-bold">جاري تحميل نت باكت...</div>;
 
             return (
-                <div className="min-h-screen bg-slate-50 font-sans text-right" dir="rtl">
-                    <nav className="bg-white p-4 shadow-md flex justify-between items-center">
-                        <h1 className="text-xl font-black text-blue-600">نِت باكت</h1>
-                        <button 
-                            onClick={() => setView(view === 'user' ? 'admin' : 'user')}
-                            className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold"
-                        >
-                            {view === 'user' ? 'لوحة المدير' : 'العودة للمتجر'}
+                <div className="min-h-screen animate-fade">
+                    <nav className="bg-blue-600 p-4 text-white shadow-lg flex justify-between items-center">
+                        <span className="text-2xl font-black">نِت باكت 🌐</span>
+                        <button onClick={() => setView(view === 'user' ? 'admin' : 'user')} className="bg-white text-blue-600 px-4 py-1 rounded-full font-bold text-sm">
+                            {view === 'user' ? 'لوحة المسؤول' : 'العودة للمحل'}
                         </button>
                     </nav>
 
-                    <div className="max-w-4xl mx-auto p-6">
+                    <div className="p-6 max-w-4xl mx-auto">
                         {view === 'user' ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {categories.map(cat => (
-                                    <div key={cat.id} className="bg-white p-8 rounded-2xl shadow-sm border-2 border-transparent hover:border-blue-500 transition-all cursor-pointer text-center">
-                                        <div className="text-4xl mb-4">🌐</div>
-                                        <h3 className="text-2xl font-bold text-gray-800">{cat.name}</h3>
-                                        <p className="text-gray-500 mt-2">تصفح أفضل عروض الإنترنت</p>
+                            <div className="space-y-6">
+                                <div className="bg-blue-50 border-r-4 border-blue-500 p-4 rounded">
+                                    <h2 className="font-bold text-blue-800">أهلاً بك!</h2>
+                                    <p className="text-sm text-blue-600">اختر نوع الشبكة وابدأ الشحن فوراً.</p>
+                                </div>
+                                <div className="grid grid-cols-1 gap-4">
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border hover:border-blue-500 transition-all">
+                                        <h3 className="text-xl font-bold text-red-600">فودافون مصر</h3>
+                                        <p className="text-gray-500 text-sm">أقوى باقات الموبايل والإنترنت</p>
                                     </div>
-                                ))}
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border hover:border-blue-500 transition-all">
+                                        <h3 className="text-xl font-bold text-green-600">اتصالات من e&</h3>
+                                        <p className="text-gray-500 text-sm">باقات حكاية وخدمات الـ VIP</p>
+                                    </div>
+                                </div>
                             </div>
                         ) : (
-                            <div className="bg-white p-8 rounded-2xl shadow-xl border-t-4 border-blue-600">
-                                <h2 className="text-2xl font-black mb-4">لوحة تحكم المسؤول</h2>
-                                <div className="bg-blue-50 p-4 rounded-lg mb-6 text-blue-800">
-                                    أهلاً بك يا مدير! من هنا هتقدر تتابع الطلبات وتغير الأسعار.
+                            <div className="bg-white p-8 rounded-2xl shadow-xl border-t-8 border-orange-500">
+                                <h2 className="text-2xl font-black mb-4">لوحة التحكم ⚙️</h2>
+                                <p className="text-gray-600 mb-6">مرحباً يا بطل، هنا ستظهر الطلبات الجديدة قريباً.</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-gray-50 p-4 rounded text-center">
+                                        <div className="text-2xl font-bold">0</div>
+                                        <div className="text-xs text-gray-500">مبيعات اليوم</div>
+                                    </div>
+                                    <div className="bg-gray-50 p-4 rounded text-center">
+                                        <div className="text-2xl font-bold">0</div>
+                                        <div className="text-xs text-gray-500">طلبات معلقة</div>
+                                    </div>
                                 </div>
-                                <p className="text-gray-600">جاري تحميل بيانات المبيعات...</p>
                             </div>
                         )}
                     </div>
@@ -204,3 +102,6 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
+    </script>
+</body>
+</html>
