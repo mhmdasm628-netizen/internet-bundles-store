@@ -10,3 +10,40 @@
   "appId": "1:288697957962:web:b18cc2fa518a42895330b3",
   "firestoreDatabaseId": "(default)"
 }
+async updateStatus(id: string, status: string) {
+    try {
+      await updateDoc(doc(db, 'subscriptions', id), {
+        status,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `subscriptions/${id}`);
+    }
+  },
+  subscribeAll(callback: (subs: any[]) => void) {
+    const q = query(collection(db, 'subscriptions'), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+      callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'subscriptions'));
+  }
+};
+
+export const chatService = {
+  async sendMessage(subscriptionId: string, text: string, senderRole: 'admin' | 'user') {
+    try {
+      await addDoc(collection(db, `subscriptions/${subscriptionId}/messages`), {
+        text,
+        senderRole,
+        timestamp: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `subscriptions/${subscriptionId}/messages`);
+    }
+  },
+  subscribeMessages(subscriptionId: string, callback: (messages: any[]) => void) {
+    const q = query(collection(db, `subscriptions/${subscriptionId}/messages`), orderBy('timestamp', 'asc'));
+    return onSnapshot(q, (snapshot) => {
+      callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, `subscriptions/${subscriptionId}/messages`));
+  }
+};
