@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نت باكت - باقات الإنترنت المميزة</title>
+    
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- React & ReactDOM CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    </style>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    borderRadius: {
+                        '2xl': '1rem',
+                        '3xl': '1.5rem',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="root">
+        <div class="min-h-screen flex items-center justify-center">
+            <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, getDoc, getDocs, query, where, orderBy, onSnapshot, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            projectId: "sites-6bd6e",
+            appId: "1:1011216840446:web:1c794c47dbb9807c7f97af",
+            apiKey: "AIzaSyC95TQmBZ4ufmhhf95cQtK0hg5vZHCVImw",
+            authDomain: "sites-6bd6e.firebaseapp.com",
+            storageBucket: "sites-6bd6e.firebasestorage.app",
+            messagingSenderId: "1011216840446"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app, "ai-studio-a3326fe4-506a-4414-ba86-dc2ea0a35141");
+        const auth = getAuth(app);
+
+        // Expose to window for Babel script
+        window.fb = { auth, db, collection, addDoc, updateDoc, deleteDoc, doc, getDoc, getDocs, query, where, orderBy, onSnapshot, serverTimestamp, setDoc, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+        const { auth, db, collection, addDoc, updateDoc, deleteDoc, doc, getDoc, getDocs, query, where, orderBy, onSnapshot, serverTimestamp, setDoc, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } = window.fb;
+
+        // --- Constants ---
+        const ADMIN_EMAILS = ["mhmdasm628@gmail.com", "djcj1421@gmail.com"];
+
+        // --- Utils ---
+        const cn = (...classes) => classes.filter(Boolean).join(' ');
+
+        // --- Icons Helper ---
+        const Icon = ({ name, className = "w-5 h-5" }) => {
+            useEffect(() => {
+                lucide.createIcons();
+            }, [name]);
+            return <i data-lucide={name} className={className}></i>;
+        };
+
+        // --- Components ---
+
+        function StatusBadge({ status }) {
+            const configs = {
+                pending: { label: 'قيد المراجعة', color: 'bg-orange-100 text-orange-600' },
+                approved: { label: 'نشط', color: 'bg-emerald-100 text-emerald-600' },
+                rejected: { label: 'مرفوض', color: 'bg-red-100 text-red-600' },
+                refund_requested: { label: 'طلب استرداد', color: 'bg-orange-100 text-orange-600' },
+                refunded: { label: 'مسترد', color: 'bg-slate-100 text-slate-600' }
+            };
+            const config = configs[status] || configs.pending;
+            return (
+                <span className={cn("px-3 py-1 rounded-full text-xs font-bold", config.color)}>
+                    {config.label}
+                </span>
+            );
+        }
+
+        // --- Main App ---
+
+        function App() {
+            const [user, setUser] = useState(null);
+            const [isAdmin, setIsAdmin] = useState(false);
+            const [isModerator, setIsModerator] = useState(false);
+            const [loading, setLoading] = useState(true);
+            const [view, setView] = useState('home');
+            
+            const [categories, setCategories] = useState([]);
+            const [packages, setPackages] = useState([]);
+            const [users, setUsers] = useState([]);
+            const [settings, setSettings] = useState({ vodafoneCashNumber: "01012345678", isMaintenanceMode: false });
+            const [selectedCategory, setSelectedCategory] = useState('all');
+            const [activeSubscriptions, setActiveSubscriptions] = useState([]);
+            const [allSubscriptions, setAllSubscriptions] = useState([]);
+            
+            const [showAuthModal, setShowAuthModal] = useState(false);
+            const [showPurchaseModal, setShowPurchaseModal] = useState(null);
+            const [showChatModal, setShowChatModal] = useState(null);
+            const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+            useEffect(() => {
+                const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+                    setUser(firebaseUser);
+                    if (firebaseUser) {
+                        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+                        const userData = userDoc.data();
+                        const role = userData?.role || (ADMIN_EMAILS.includes(firebaseUser.email || '') ? 'admin' : 'user');
+                        
+                        setIsAdmin(role === 'admin');
+                        setIsModerator(role === 'admin' || role === 'moderator');
+
+                        await setDoc(doc(db, 'users', firebaseUser.uid), {
+                            uid: firebaseUser.uid,
+                            email: firebaseUser.email,
+                            displayName: firebaseUser.displayName,
+                            photoURL: firebaseUser.photoURL,
+                            role: role
+                        }, { merge: true });
+                    }
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            useEffect(() => {
+                const q = query(collection(db, 'categories'), orderBy('order', 'asc'));
+                const unsubCats = onSnapshot(q, (snapshot) => {
+                    setCategories(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+                });
+
+                const unsubPkgs = onSnapshot(collection(db, 'packages'), (snapshot) => {
+                    setPackages(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+                });
+
+                const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (snapshot) => {
+                    if (snapshot.exists()) setSettings(snapshot.data());
+                });
+
+                return () => { unsubCats(); unsubPkgs(); unsubSettings(); };
+            }, []);
+
+            useEffect(() => {
+                if (user) {
+                    const q = query(collection(db, 'subscriptions'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+                    const unsub = onSnapshot(q, (snapshot) => {
+                        setActiveSubscriptions(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+                    });
+                    return () => unsub();
+                }
+            }, [user]);
+
+            useEffect(() => {
+                if (isModerator) {
+                    const q = query(collection(db, 'subscriptions'), orderBy('createdAt', 'desc'));
+                    const unsub = onSnapshot(q, (snapshot) => {
+                        setAllSubscriptions(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+                    });
+                    return () => unsub();
+                }
+            }, [isModerator]);
+
+            const handleLogin = async () => {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+                setShowAuthModal(false);
+            };
+
+            const handleLogout = async () => {
+                await signOut(auth);
+                setView('home');
+            };
+
+            if (loading) return (
+                <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+                    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between h-16 items-center">
+                                <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('home')}>
+                                    <div className="bg-indigo-600 p-2 rounded-lg">
+                                        <Icon name="wifi" className="text-white w-6 h-6" />
+                                    </div>
+                                    <span className="text-xl font-bold tracking-tight text-indigo-900">نت باكت</span>
+                                </div>
+                                
+                                <div className="hidden md:flex items-center gap-6">
+                                    <button onClick={() => setView('home')} className={cn("font-medium", view === 'home' ? "text-indigo-600" : "text-slate-600")}>الرئيسية</button>
+                                    {user && <button onClick={() => setView('my-subscriptions')} className={cn("font-medium", view === 'my-subscriptions' ? "text-indigo-600" : "text-slate-600")}>اشتراكاتي</button>}
+                                    {isModerator && <button onClick={() => setView('dashboard')} className={cn("font-medium", view === 'dashboard' ? "text-indigo-600" : "text-slate-600")}>لوحة التحكم</button>}
+                                    
+                                    {user ? (
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full">
+                                                <img src={user.photoURL} className="w-6 h-6 rounded-full" />
+                                                <span className="text-sm font-bold">{user.displayName?.split(' ')[0]}</span>
+                                            </div>
+                                            <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500"><Icon name="log-out" /></button>
+                                        </div>
+                                    ) : (
+                                        <button onClick={() => setShowAuthModal(true)} className="bg-indigo-600 text-white px-6 py-2 rounded-full font-semibold">تسجيل الدخول</button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+
+                    <main className="max-w-7xl mx-auto px-4 py-8">
+                        {view === 'home' && <HomeView categories={categories} packages={packages} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} onSubscribe={(pkg) => user ? setShowPurchaseModal(pkg) : setShowAuthModal(true)} />}
+                        {view === 'my-subscriptions' && <MySubscriptionsView subscriptions={activeSubscriptions} onOpenChat={setShowChatModal} />}
+                        {view === 'dashboard' && <DashboardView subscriptions={allSubscriptions} isAdmin={isAdmin} isModerator={isModerator} onOpenChat={setShowChatModal} />}
+                    </main>
+
+                    {showAuthModal && <AuthModal onLogin={handleLogin} onClose={() => setShowAuthModal(false)} />}
+                    {showPurchaseModal && <PurchaseModal pkg={showPurchaseModal} user={user} settings={settings} onClose={() => setShowPurchaseModal(null)} />}
+                    {showChatModal && <ChatModal subscription={showChatModal} isAdmin={isAdmin} onClose={() => setShowChatModal(null)} />}
+                </div>
+            );
+        }
+
+        function HomeView({ categories, packages, selectedCategory, setSelectedCategory, onSubscribe }) {
+            const filtered = selectedCategory === 'all' ? packages : packages.filter(p => p.categoryId === selectedCategory);
+            return (
+                <div className="space-y-12">
+                    <header className="text-center space-y-4">
+                        <h1 className="text-4xl md:text-5xl font-black text-slate-900">باقات الإنترنت المميزة</h1>
+                        <p className="text-slate-500 text-lg">اختر من بين أفضل العروض والخدمات لجميع الشبكات في مصر.</p>
+                    </header>
+                    <div className="flex flex-wrap justify-center gap-3">
+                        <button onClick={() => setSelectedCategory('all')} className={cn("px-6 py-2 rounded-full font-bold border-2", selectedCategory === 'all' ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200")}>الكل</button>
+                        {categories.map(cat => (
+                            <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={cn("px-6 py-2 rounded-full font-bold border-2", selectedCategory === cat.id ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200")}>{cat.name}</button>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {filtered.map(pkg => (
+                            <div key={pkg.id} className="bg-white rounded-[2rem] overflow-hidden shadow-xl border border-slate-100 p-6 space-y-4">
+                                <h3 className="text-2xl font-bold">{pkg.name}</h3>
+                                <p className="text-slate-500 text-sm">{pkg.description}</p>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-3xl font-black text-indigo-600">{pkg.price} ج.م</span>
+                                    <button onClick={() => onSubscribe(pkg)} className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold">شراء الآن</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function MySubscriptionsView({ subscriptions, onOpenChat }) {
+            return (
+                <div className="space-y-8">
+                    <h1 className="text-3xl font-bold">اشتراكاتي</h1>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {subscriptions.map(sub => (
+                            <div key={sub.id} className="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100 flex flex-col gap-4">
+                                <div className="flex justify-between">
+                                    <h3 className="text-xl font-bold">{sub.packageName}</h3>
+                                    <StatusBadge status={sub.status} />
+                                </div>
+                                {sub.status === 'approved' && (
+                                    <button onClick={() => onOpenChat(sub)} className="bg-indigo-600 text-white py-3 rounded-xl font-bold">تواصل مع المشرف</button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function DashboardView({ subscriptions, isAdmin, isModerator, onOpenChat }) {
+            return (
+                <div className="space-y-8">
+                    <h1 className="text-3xl font-bold">لوحة التحكم</h1>
+                    <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden">
+                        <table className="w-full text-right">
+                            <thead className="bg-slate-50 border-b">
+                                <tr>
+                                    <th className="px-6 py-4">العميل</th>
+                                    <th className="px-6 py-4">الباقة</th>
+                                    <th className="px-6 py-4">الحالة</th>
+                                    <th className="px-6 py-4">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {subscriptions.map(sub => (
+                                    <tr key={sub.id}>
+                                        <td className="px-6 py-4">{sub.userEmail}</td>
+                                        <td className="px-6 py-4">{sub.packageName}</td>
+                                        <td className="px-6 py-4"><StatusBadge status={sub.status} /></td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex gap-2">
+                                                {isAdmin && sub.status === 'pending' && (
+                                                    <button onClick={() => updateDoc(doc(db, 'subscriptions', sub.id), { status: 'approved' })} className="p-2 bg-emerald-100 text-emerald-600 rounded-lg"><Icon name="check" /></button>
+                                                )}
+                                                {sub.status === 'approved' && (
+                                                    <button onClick={() => onOpenChat(sub)} className="p-2 bg-indigo-100 text-indigo-600 rounded-lg"><Icon name="message-square" /></button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        function AuthModal({ onLogin, onClose }) {
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl max-w-md w-full text-center space-y-6">
+                        <h2 className="text-3xl font-black">مرحباً بك</h2>
+                        <p className="text-slate-500">سجل دخولك لتبدأ في شراء الباقات ومتابعة اشتراكاتك.</p>
+                        <button onClick={onLogin} className="w-full bg-white border-2 border-slate-200 py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-50">
+                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" />
+                            الدخول بواسطة جوجل
+                        </button>
+                        <button onClick={onClose} className="text-slate-400 font-bold">إغلاق</button>
+                    </div>
+                </div>
+            );
+        }
+
+        function PurchaseModal({ pkg, user, settings, onClose }) {
+            const [phone, setPhone] = useState('');
+            const [loading, setLoading] = useState(false);
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                await addDoc(collection(db, 'subscriptions'), {
+                    packageId: pkg.id,
+                    packageName: pkg.name,
+                    price: pkg.price,
+                    userId: user.uid,
+                    userEmail: user.email,
+                    senderPhone: phone,
+                    status: 'pending',
+                    createdAt: serverTimestamp()
+                });
+                alert('تم إرسال طلبك بنجاح!');
+                onClose();
+            };
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <form onSubmit={handleSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-2xl max-w-md w-full space-y-6">
+                        <h2 className="text-2xl font-bold">تأكيد الاشتراك</h2>
+                        <div className="bg-indigo-50 p-4 rounded-2xl">
+                            <p className="text-sm text-indigo-600">يرجى تحويل مبلغ <b>{pkg.price} ج.م</b> إلى الرقم التالي:</p>
+                            <p className="text-2xl font-black text-indigo-900 mt-2">{settings.vodafoneCashNumber}</p>
+                        </div>
+                        <input required type="tel" placeholder="الرقم الذي حولت منه" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-slate-50 border rounded-2xl outline-none" />
+                        <button disabled={loading} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold">{loading ? 'جاري الإرسال...' : 'تأكيد الدفع'}</button>
+                        <button type="button" onClick={onClose} className="w-full text-slate-400 font-bold">إلغاء</button>
+                    </form>
+                </div>
+            );
+        }
+
+        function ChatModal({ subscription, isAdmin, onClose }) {
+            const [messages, setMessages] = useState([]);
+            const [text, setText] = useState('');
+            useEffect(() => {
+                const q = query(collection(db, 'chatMessages'), where('subscriptionId', '==', subscription.id), orderBy('createdAt', 'asc'));
+                return onSnapshot(q, (s) => setMessages(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+            }, [subscription.id]);
+            const send = async (e) => {
+                e.preventDefault();
+                if (!text.trim()) return;
+                await addDoc(collection(db, 'chatMessages'), { subscriptionId: subscription.id, senderId: auth.currentUser.uid, text, createdAt: serverTimestamp() });
+                setText('');
+            };
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-2xl w-full h-[80vh] flex flex-col overflow-hidden">
+                        <div className="p-6 border-b flex justify-between items-center">
+                            <h2 className="text-xl font-bold">محادثة: {subscription.packageName}</h2>
+                            <button onClick={onClose}><Icon name="x" /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
+                            {messages.map(m => (
+                                <div key={m.id} className={cn("max-w-[80%] p-4 rounded-2xl", m.senderId === auth.currentUser.uid ? "bg-indigo-600 text-white mr-auto rounded-tl-none" : "bg-white border rounded-tr-none")}>
+                                    {m.text}
+                                </div>
+                            ))}
+                        </div>
+                        <form onSubmit={send} className="p-4 border-t flex gap-2">
+                            <input value={text} onChange={e => setText(e.target.value)} className="flex-1 p-4 bg-slate-50 border rounded-2xl outline-none" placeholder="اكتب رسالتك..." />
+                            <button className="bg-indigo-600 text-white p-4 rounded-2xl"><Icon name="send" /></button>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
