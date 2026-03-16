@@ -3,28 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نت باكت | إدارة الباقات الذكية</title>
+    <title>نت باكت | أرخص باقات إنترنت</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <style>
-        body { font-family: 'Tajawal', sans-serif; scroll-behavior: smooth; }
-        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; }
+        body { font-family: 'Tajawal', sans-serif; }
+        .card-anim { transition: all 0.3s ease; }
+        .card-anim:hover { transform: translateY(-5px); border-color: #2563eb; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body class="bg-slate-50">
     <div id="root"></div>
 
     <script type="text/babel">
-        // 1. إعدادات فايربيز (بيانات مشروعك الفعلية)
         const firebaseConfig = {
             apiKey: "AIzaSyCi1a7pMvUyDpkVEPwjhTaYz0Qec", 
             authDomain: "internet-f0683.firebaseapp.com",
@@ -37,107 +34,74 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // 2. المكونات الرئيسية للموقع
         function App() {
-            const [view, setView] = React.useState('user'); // user | admin
-            const [selectedCategory, setSelectedCategory] = React.useState(null);
-            const [packages, setPackages] = React.useState([]);
-            const [loading, setLoading] = React.useState(false);
-
-            // جلب الباقات عند اختيار شبكة
-            const fetchPackages = async (catId) => {
-                setLoading(true);
-                const snapshot = await db.collection('packages').where('categoryId', '==', catId).where('isActive', '==', true).get();
-                setPackages(snapshot.docs.map(d => ({id: d.id, ...d.data()})));
-                setLoading(false);
-                setSelectedCategory(catId);
-            };
+            const [view, setView] = React.useState('user'); 
+            const [selectedNet, setSelectedNet] = React.useState(null);
 
             return (
-                <div className="min-h-screen flex flex-col">
-                    {/* Header */}
-                    <nav className="glass sticky top-0 z-50 border-b p-4 flex justify-between items-center shadow-sm">
-                        <div className="flex items-center gap-2">
-                            <span className="text-2xl">🌐</span>
-                            <h1 className="text-xl font-black text-blue-600">نِت باكت</h1>
-                        </div>
+                <div className="min-h-screen">
+                    <nav className="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-50">
+                        <h1 className="text-2xl font-black text-blue-600">نِت باكت</h1>
                         <button 
                             onClick={() => setView(view === 'user' ? 'admin' : 'user')}
-                            className="text-xs font-bold bg-slate-100 px-4 py-2 rounded-full hover:bg-blue-600 hover:text-white transition-all"
+                            className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-sm"
                         >
                             {view === 'user' ? 'لوحة الإدارة' : 'العودة للمتجر'}
                         </button>
                     </nav>
 
-                    {/* Main Content */}
-                    <main className="flex-grow p-4 max-w-4xl mx-auto w-full">
+                    <main className="max-w-4xl mx-auto p-6">
                         {view === 'user' ? (
-                            <div className="space-y-6">
-                                {!selectedCategory ? (
-                                    <>
-                                        <div className="text-center py-8">
-                                            <h2 className="text-2xl font-bold">أهلاً بك في نت باكت</h2>
-                                            <p className="text-slate-500">اختر الشبكة الخاصة بك لشحن الباقة فوراً</p>
+                            <div>
+                                {!selectedNet ? (
+                                    <div className="space-y-6">
+                                        <div className="bg-blue-600 p-8 rounded-3xl text-white text-center shadow-xl">
+                                            <h2 className="text-3xl font-black mb-2">أهلاً بك يا بطل!</h2>
+                                            <p className="opacity-90">اختر شبكتك وابدأ شحن باقتك في ثواني</p>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <button onClick={() => fetchPackages('vodafone')} className="p-6 bg-white border-2 border-transparent hover:border-red-500 rounded-2xl shadow-sm text-right transition-all">
+                                            <button onClick={() => setSelectedNet('vodafone')} className="bg-white p-6 rounded-2xl border-2 border-transparent card-anim shadow-sm text-right">
                                                 <span className="text-3xl">🔴</span>
-                                                <h3 className="text-xl font-bold mt-2">فودافون</h3>
-                                                <p className="text-sm text-slate-400">باقات إنترنت ومكالمات</p>
+                                                <h3 className="text-xl font-bold mt-2 text-red-600">فودافون مصر</h3>
+                                                <p className="text-slate-400 text-sm font-medium">باقات فليكس وإنترنت هوائي</p>
                                             </button>
-                                            <button onClick={() => fetchPackages('etisalat')} className="p-6 bg-white border-2 border-transparent hover:border-green-500 rounded-2xl shadow-sm text-right transition-all">
+                                            <button onClick={() => setSelectedNet('etisalat')} className="bg-white p-6 rounded-2xl border-2 border-transparent card-anim shadow-sm text-right">
                                                 <span className="text-3xl">🟢</span>
-                                                <h3 className="text-xl font-bold mt-2">اتصالات</h3>
-                                                <p className="text-sm text-slate-400">أقوى عروض e& مصر</p>
+                                                <h3 className="text-xl font-bold mt-2 text-green-600">اتصالات من e&</h3>
+                                                <p className="text-slate-400 text-sm font-medium">أقوى عروض الداتا والمكالمات</p>
                                             </button>
                                         </div>
-                                    </>
+                                    </div>
                                 ) : (
-                                    <div className="animate-fade-in">
-                                        <button onClick={() => setSelectedCategory(null)} className="mb-4 text-blue-600 font-bold">← العودة للشبكات</button>
-                                        <h2 className="text-xl font-bold mb-4">الباقات المتاحة:</h2>
-                                        {loading ? <p>جاري التحميل...</p> : (
-                                            <div className="grid gap-3">
-                                                {packages.length > 0 ? packages.map(pkg => (
-                                                    <div key={pkg.id} className="bg-white p-4 rounded-xl border flex justify-between items-center">
-                                                        <div>
-                                                            <p className="font-bold">{pkg.name}</p>
-                                                            <p className="text-blue-600 font-black">{pkg.price} ج.م</p>
-                                                        </div>
-                                                        <button className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold">شحن</button>
-                                                    </div>
-                                                )) : <p className="text-slate-400">لا توجد باقات متاحة حالياً لهذه الشبكة.</p>}
-                                            </div>
-                                        )}
+                                    <div className="bg-white p-8 rounded-3xl shadow-lg border text-center">
+                                        <button onClick={() => setSelectedNet(null)} className="text-blue-600 font-bold mb-4 block underline">← رجوع للشبكات</button>
+                                        <div className="py-10">
+                                            <div className="text-5xl mb-4">⌛</div>
+                                            <h3 className="text-xl font-bold">جاري تحديث باقات {selectedNet === 'vodafone' ? 'فودافون' : 'اتصالات'}...</h3>
+                                            <p className="text-slate-500 mt-2">سيتم عرض الباقات المتاحة فور إضافتها من لوحة التحكم.</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
                         ) : (
-                            /* Admin View */
-                            <div className="bg-white p-6 rounded-2xl shadow-xl border-t-4 border-blue-600">
-                                <h2 className="text-2xl font-black mb-6">لوحة التحكم الإدارية</h2>
+                            <div className="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-blue-600">
+                                <h2 className="text-2xl font-black mb-6">لوحة تحكم المسؤول ⚙️</h2>
                                 <div className="grid grid-cols-2 gap-4 mb-8">
-                                    <div className="bg-blue-50 p-4 rounded-xl">
-                                        <p className="text-xs text-blue-600 font-bold">إجمالي المبيعات</p>
-                                        <p className="text-2xl font-black">0 ج.م</p>
+                                    <div className="bg-blue-50 p-6 rounded-2xl">
+                                        <p className="text-blue-600 font-bold text-sm">إجمالي الطلبات</p>
+                                        <p className="text-3xl font-black text-blue-900">0</p>
                                     </div>
-                                    <div className="bg-orange-50 p-4 rounded-xl">
-                                        <p className="text-xs text-orange-600 font-bold">طلبات معلقة</p>
-                                        <p className="text-2xl font-black">0</p>
+                                    <div className="bg-green-50 p-6 rounded-2xl">
+                                        <p className="text-green-600 font-bold text-sm">مبيعات اليوم</p>
+                                        <p className="text-3xl font-black text-green-900">0 ج.م</p>
                                     </div>
                                 </div>
-                                <div className="border-t pt-4">
-                                    <h3 className="font-bold mb-2 text-slate-400 uppercase text-xs tracking-wider">آخر العمليات</h3>
-                                    <p className="text-center py-8 text-slate-300">لا توجد طلبات جديدة حالياً</p>
+                                <div className="bg-slate-50 p-6 rounded-2xl border-2 border-dashed border-slate-200 text-center">
+                                    <p className="text-slate-400 font-bold">لا توجد طلبات شحن معلقة حالياً</p>
                                 </div>
                             </div>
                         )}
                     </main>
-
-                    {/* Footer */}
-                    <footer className="p-8 text-center text-slate-400 text-xs">
-                        &copy; 2026 نت باكت - جميع الحقوق محفوظة
-                    </footer>
                 </div>
             );
         }
